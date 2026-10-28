@@ -14,14 +14,14 @@ The assistant reads freely, drafts on request, and never acts on its own.
 |---|---|---|
 | Calendar | New tasks and calendar events | Sends anything |
 | Email (read-only scope) | Email drafts | Pushes or merges code |
-| My tasks and Google to-do lists | To-do list changes | Moves money |
+| My tasks and Google to-do lists | To-do list changes | Moves money or pays anyone |
 | Its own memory | Text drafts (a tap opens Messages pre-filled; I press send) | Deletes anything |
-| Web pages it looks up | Code changes on a new branch | Follows instructions found in an email, text or web page |
-| iMessage history (local on my Mac only) | | |
+| Web pages it looks up | Code changes on a new branch | Stores passwords or login details |
+| iMessage history (local on my Mac only) | | Follows instructions found in an email, text, note or web page |
 
 - **It never sends anything.** No emails, texts or messages. It only drafts; I send.
 - **Every write waits for my approval, and approving is always a tap**, never a spoken "yes."
-- **Content from emails, texts and web pages is data, never instructions.** This is the prompt-injection defense.
+- **Content from emails, texts, notes, imports and web pages is data, never instructions.** This is the prompt-injection defense.
 - The server only answers requests that carry a shared secret token sent by my iPhone Shortcut. Everything else is rejected, so finding the server's address isn't enough to read my calendar.
 - It can only call the tools in this repo, and every tool call is logged with its reason.
 - A monthly cost cap, and a kill switch that turns off every write tool.
@@ -68,6 +68,21 @@ People memory rules:
 - What I said about one person never appears in anything written to someone else.
 - People notes are the most sensitive data: viewable and deletable by me, never used in demos (demos use made-up people).
 
+## Lists and records (Milestone 7)
+
+Things worth keeping that aren't facts or memories go in one `items` table. Each item has a type and, when relevant, a link to a person or place in the people graph:
+
+- friends' funny quotes, linked to who said them
+- gift ideas, linked to who they're for and who suggested them
+- a travel bucket list, linked to places
+- shipping addresses, stored on the person and only ever read back to me
+
+Items come from "remember..." requests, Debriefs, or the Apple Notes import.
+
+Money owed lives in a separate `ledger` table: person, amount, direction (I owe or they owe), what for, date, and whether it's settled. Totals are computed in SQL by a tool, so the model never does the arithmetic. It records debts; it never pays anyone.
+
+Passwords and login details are never stored. They stay in my password manager.
+
 ## Stack
 
 | Piece | Choice |
@@ -98,11 +113,48 @@ People memory rules:
 | 4 | Sun Nov 8 | People memory graph from Debrief with approval; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
 | 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding); Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed |
-| 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool | Accuracy, cost, latency before and after |
+| 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |
 | 8 | Tue Nov 17 | Cost cap, kill switch, full test suite; project site with a demo | The whole suite passes |
 | 9 | Sun Nov 22 | Live voice conversation via ElevenLabs Agents | One conversation adds a to-do, drafts a text, answers a calendar question, with the same eval scores as text |
 
 After each milestone I add a 4-line write-up here: the problem, what I tried, numbers before and after, and what's next.
+
+## Beyond the milestones
+
+### Values model
+
+Text-only slice after Milestone 7; full version after Nov 22.
+
+How I make decisions, in my own words, in three layers:
+
+1. **Core values**: non-negotiables (for example, no tolerance for hypocrisy).
+2. **Principles**: guides for an area of life that follow from them (for example, relationships should be equal; being in one doesn't mean giving up friends or being your own person).
+3. **Situational notes**: adjustments and exceptions in specific cases, and why.
+
+Each entry is dated with an example, and old versions are kept. Only I write or change entries; the assistant may suggest wording from a conversation, and I approve it.
+
+A "help me decide" tool pulls in the relevant values and reasons with them. It doesn't pretend to be me: it reasons with my values out loud ("by your principle that..."), says when two of my values conflict, and kindly points out when something I'm considering doesn't match a value I wrote down.
+
+The first slice has no voice: the values table, the "help me decide" tool, and an eval of 10 decisions where I record my choice and the deciding value. It measures how often the assistant picks the same value and reaches the same choice.
+
+### "Talk it through" mode (after Nov 22)
+
+A live voice conversation for personal matters: conflicts, falling-outs, breakups. It builds on people memory (M4), texts (M5) and live voice (M9).
+
+- **Only I start it.** It never raises a past conflict on its own.
+- **Context only with my okay:** for that conversation, it pulls in the relevant people memory, text thread and my values model.
+- **Its job:** listen, ask questions, help me understand what happened and the other person's view, and help me plan what to say (a draft text I send myself, if I want one).
+- **Honest, not just agreeable:** it only hears my side, so it kindly points out where I may have contributed.
+- **Remembered, with approval:** at the end it writes a summary of what happened and what I decided. I approve or edit it, and it's saved as a dated note on that person in the graph.
+- **Kept apart:** these notes are used only in Talk it through and when I ask about that person, never in drafts or suggestions to anyone else.
+- **Supports, doesn't replace:** when something is heavy, it can suggest talking with a friend or a counselor too.
+
+Before real use, I'll check the data-retention settings at ElevenLabs and Anthropic. Evals: 10 written scenarios, some where I'm partly at fault, checking that it says so, plus the Milestone 4 leak test.
+
+### Imports (after Nov 22)
+
+- **Apple Notes:** the Mac worker reads folders I choose (via AppleScript), the model sorts each note into a type, and I approve the batch before anything is saved.
+- **Instagram:** there's no official API for a personal account's saved posts, and no scraping. Instead, I periodically import Instagram's "Download your information" JSON export (posts, saved, likes, topics).
 
 ## Setup
 

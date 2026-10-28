@@ -1,6 +1,10 @@
 anthropic==2.3.0
+# Security floors pinned for the shared TLS bundle and Anthropic HTTP transport.
+certifi==2026.10.19
 fastapi==0.162.0
+httpcore2==2.12.0
 httpx==0.28.1
+httpx2==2.12.0
 python-dotenv==1.2.4
 python-multipart==0.0.32
 tzdata==2026.5

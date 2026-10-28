@@ -22,9 +22,9 @@ The assistant reads freely, drafts on request, and never acts on its own.
 - **It never sends anything.** No emails, texts or messages. It only drafts; I send.
 - **Every write waits for my approval, and approving is always a tap**, never a spoken "yes."
 - **Content from emails, texts, notes, imports and web pages is data, never instructions.** This is the prompt-injection defense.
-- The server only answers requests that carry a shared secret token sent by my iPhone Shortcut. Everything else is rejected, so finding the server's address isn't enough to read my calendar.
+- The server only answers requests that carry a shared secret token sent by my iPhone Shortcut (in the `X-Assistant-Token` header). Everything else is rejected, including pages the framework would add on its own, so finding the server's address isn't enough to read my calendar.
 - It can only call the tools in this repo, and every tool call is logged with its reason.
-- A monthly cost cap, and a kill switch that turns off every write tool.
+- A monthly cost cap, and a kill switch that turns off every write tool. The first layer is a monthly spend limit on the Anthropic workspace the API key belongs to.
 - The model gets only what a request needs, not my whole inbox.
 - My writing style is learned only from messages I sent. Other people's messages are context for the thread being answered, never style examples. Drafts in my voice use no em dashes and match the tone of my own sent messages.
 - It never speaks on its own. Replies go to a replies queue and are read aloud only when I ask (Action button with no speech, or "what's new?").
@@ -87,12 +87,12 @@ Passwords and login details are never stored. They stay in my password manager.
 
 | Piece | Choice |
 |---|---|
-| Input | iPhone Action button Shortcut: Record Audio, send to the server |
-| Speech to text | ElevenLabs Scribe v2 |
+| Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone |
+| Speech to text | ElevenLabs Scribe v2 (`scribe_v2`, English) |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching |
-| Main model | Claude via the Anthropic API, using its built-in tool calling |
+| Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task uses Claude Haiku 5.5, which matched Opus 5.5 on the test requests, faster and at about 1/40 the price |
 | Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Switching models means re-embedding everything |
-| Backend | Python + FastAPI |
+| Backend | Python + FastAPI. I considered Django, but this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys) |
 | Data | Postgres with pgvector |
 | Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
@@ -102,11 +102,16 @@ Passwords and login details are never stored. They stay in my password manager.
 | Weather | Open-Meteo (free, no key), using my saved city |
 | Live conversation (M9) | ElevenLabs Agents with this server as a custom LLM (OpenAI-style streaming endpoint) |
 
+## Dates and time zones
+
+- The Shortcut sends the phone's time zone (like `America/New_York`) with every request, so "tomorrow at 5" means 5 wherever I am. A zone I name ("3pm Pacific") wins.
+- The model only writes down the date, time and zone I said. Code combines them into one exact datetime with the right offset, so daylight saving changes come out right. The model never does date arithmetic: the prompt lists the next seven dates for it to look up.
+
 ## Milestones
 
 | # | Done by | What works | How we know |
 |---|---|---|---|
-| 0 | Oct 27 | Action button → transcript → a task as JSON | Five spoken requests come out right |
+| 0 | Oct 27 | Action button → transcript → a task as JSON (kind, title, date, time, time zone, exact datetime, notes) | Five spoken requests come out right |
 | 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory | "What's on Friday?" answers from the calendar; "add X" waits for approval; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
@@ -165,6 +170,35 @@ cp .env.example .env   # then fill in the keys
 ```
 
 API keys never go in code. They live in `.env` locally (ignored by git) and in Replit Secrets when deployed. [.env.example](.env.example) lists every key and the milestone that first needs it.
+
+Run the server on a Mac:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload        # http://localhost:8000
+python scripts/try_m0.py         # in a second terminal: seven spoken test requests
+```
+
+On Replit (Autoscale deployment), the build command is `pip install -r requirements.txt` and the run command is `uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
+
+| File | What it does |
+|---|---|
+| [main.py](main.py) | The web server: checks the token, then `POST /voice` turns a recording into a task |
+| [speech.py](speech.py) | Sends audio to ElevenLabs Scribe and returns the words |
+| [task_parser.py](task_parser.py) | Asks Claude Haiku to fill in a fixed task shape (kind, title, date, time, time zone, notes), then code works out the exact moment with the right offset |
+| [scripts/try_m0.py](scripts/try_m0.py) | Speaks seven requests with the Mac's voice and checks each answer |
+
+### iPhone Shortcut
+
+A new shortcut named "Assistant" with four actions:
+
+1. **Record Audio**: Start Recording *Immediately*, Finish Recording *On Tap*.
+2. **Format Date**: Date *Current Date*, Date Format *Custom*, Format String `VV` (gives the time zone name, like `America/New_York`).
+3. **Get Contents of URL**: `https://<app>.replit.app/voice`, Method *POST*, header `X-Assistant-Token` set to the token, Request Body *Form* with two fields: `file` (File: *Recorded Audio*) and `timezone` (Text: *Formatted Date*).
+4. **Show Result**: *Contents of URL*.
+
+Then Settings → Action Button → Shortcut → "Assistant". The shortcut holds the token, so it is never shared.
 
 ## Open questions
 

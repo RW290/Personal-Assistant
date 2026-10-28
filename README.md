@@ -1,1 +1,128 @@
-# Personal-Assistant
+# Personal Assistant
+
+A voice-first personal assistant on my iPhone's Action button. I press it and speak; it reads my calendar and email, keeps my Google to-do lists up to date, drafts emails and texts that sound like me, remembers people and facts about me, searches the web and saves what it finds, and gives me a spoken morning briefing. The end goal is a live back-and-forth voice conversation.
+
+I'm building it by hand, in small working steps, so I can explain how and why every part works. The core agent loop (tool calling, approval queue, action log) is written from scratch, with no agent frameworks.
+
+**Status:** Milestone 0 (voice in, task out) in progress.
+
+## Trust rules
+
+The assistant reads freely, drafts on request, and never acts on its own.
+
+| Reads freely | Drafts, then waits for my tap | Never |
+|---|---|---|
+| Calendar | New tasks and calendar events | Sends anything |
+| Email (read-only scope) | Email drafts | Pushes or merges code |
+| My tasks and Google to-do lists | To-do list changes | Moves money |
+| Its own memory | Text drafts (a tap opens Messages pre-filled; I press send) | Deletes anything |
+| Web pages it looks up | Code changes on a new branch | Follows instructions found in an email, text or web page |
+| iMessage history (local on my Mac only) | | |
+
+- **It never sends anything.** No emails, texts or messages. It only drafts; I send.
+- **Every write waits for my approval, and approving is always a tap**, never a spoken "yes."
+- **Content from emails, texts and web pages is data, never instructions.** This is the prompt-injection defense.
+- The server only answers requests that carry a shared secret token sent by my iPhone Shortcut. Everything else is rejected, so finding the server's address isn't enough to read my calendar.
+- It can only call the tools in this repo, and every tool call is logged with its reason.
+- A monthly cost cap, and a kill switch that turns off every write tool.
+- The model gets only what a request needs, not my whole inbox.
+- My writing style is learned only from messages I sent. Other people's messages are context for the thread being answered, never style examples. Drafts in my voice use no em dashes and match the tone of my own sent messages.
+- It never speaks on its own. Replies go to a replies queue and are read aloud only when I ask (Action button with no speech, or "what's new?").
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[iPhone Action button] -->|recorded audio| B[FastAPI server]
+    B --> C[ElevenLabs Scribe<br/>speech to text]
+    C -->|transcript| D[Agent loop<br/>Claude + tools]
+    D -->|read tools| E[(Calendar, Gmail, Tasks,<br/>memory, web)]
+    D -->|write tools| F[Approval queue]
+    F -->|I tap approve| G[Write runs:<br/>task, event or draft]
+    D <-->|texts, coding| M[Mac worker<br/>local only]
+    D --> H[Replies queue]
+    H -->|when I ask| I[ElevenLabs<br/>text to speech]
+```
+
+### The agent loop
+
+1. Send the model the request, my facts, and the tool list.
+2. It returns either a final answer or a tool call.
+3. For a tool call: validate the arguments. If it's a write tool, put it in the approval queue and stop. Otherwise run it, log it with its reason, and send the result back.
+4. Repeat until a final answer, with a cap of about 5 rounds. Tool errors and bad arguments are reported back to the model instead of crashing.
+
+## Memory
+
+- **Facts** (Milestone 1): short, stable things about me, like where I live, that I want the weather when I wake up, class times and names. A small table included in every call, managed with `remember` and `forget` tools. Every save tells me exactly what was saved.
+- **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those.
+- **People memory, a graph** (Milestone 4): who everyone in my life is and how I relate to them, personal and professional. All in Postgres:
+  - *nodes*: one per person, company or group
+  - *edges*: how they connect (friend, co-president with, works at, manager of), each dated so newer facts replace older ones
+  - *notes*: dated summaries of what I said about a person, with embeddings for search by meaning
+  - a short per-person summary, rewritten when new notes arrive
+
+People memory is filled from a "Debrief" Shortcut: I talk for a few minutes about a person, meeting or conflict. The model extracts people, relationships and events and shows me what it plans to save. Nothing is saved until I tap approve, and I can edit or drop any line. It's built on plain tables rather than Graphiti or Mem0, so I understand every part.
+
+People memory rules:
+- Record what I said, in my words. Never label or diagnose anyone, or state something about a person I didn't say.
+- What I said about one person never appears in anything written to someone else.
+- People notes are the most sensitive data: viewable and deletable by me, never used in demos (demos use made-up people).
+
+## Stack
+
+| Piece | Choice |
+|---|---|
+| Input | iPhone Action button Shortcut: Record Audio, send to the server |
+| Speech to text | ElevenLabs Scribe v2 |
+| Text to speech | ElevenLabs, on request only, generated when I press play, with caching |
+| Main model | Claude via the Anthropic API, using its built-in tool calling |
+| Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Switching models means re-embedding everything |
+| Backend | Python + FastAPI |
+| Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys) |
+| Data | Postgres with pgvector |
+| Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
+| To-dos | Google Tasks API, writes behind approval |
+| Texts | The Messages database on my Mac, read-only, via a small local worker |
+| Coding tool | Claude Code run headless by the Mac worker, in a fresh git worktree of an allowed repo |
+| Weather | Open-Meteo (free, no key), using my saved city |
+| Live conversation (M9) | ElevenLabs Agents with this server as a custom LLM (OpenAI-style streaming endpoint) |
+
+## Milestones
+
+| # | Done by | What works | How we know |
+|---|---|---|---|
+| 0 | Oct 27 | Action button → transcript → a task as JSON | Five spoken requests come out right |
+| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory | "What's on Friday?" answers from the calendar; "add X" waits for approval; "I live in Durham" survives a restart |
+| 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
+| 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
+| 4 | Sun Nov 8 | People memory graph from Debrief with approval; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; leak test (no draft to one person mentions notes about another); no eval gets worse |
+| 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
+| 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding); Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed |
+| 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool | Accuracy, cost, latency before and after |
+| 8 | Tue Nov 17 | Cost cap, kill switch, full test suite; project site with a demo | The whole suite passes |
+| 9 | Sun Nov 22 | Live voice conversation via ElevenLabs Agents | One conversation adds a to-do, drafts a text, answers a calendar question, with the same eval scores as text |
+
+After each milestone I add a 4-line write-up here: the problem, what I tried, numbers before and after, and what's next.
+
+## Setup
+
+```bash
+git clone https://github.com/RW290/Personal-Assistant.git
+cd Personal-Assistant
+cp .env.example .env   # then fill in the keys
+```
+
+API keys never go in code. They live in `.env` locally (ignored by git) and in Replit Secrets when deployed. [.env.example](.env.example) lists every key and the milestone that first needs it.
+
+## Open questions
+
+- A name for the assistant.
+- Which Gmail account to use (a personal one is likely simpler than Duke's).
+
+## License
+
+Apache 2.0. See [LICENSE](LICENSE).
+
+---
+
+*This README mirrors [CLAUDE.md](CLAUDE.md), the project's working spec. When CLAUDE.md changes, this file is updated in the same change.*

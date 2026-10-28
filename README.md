@@ -166,6 +166,24 @@ cp .env.example .env   # then fill in the keys
 
 API keys never go in code. They live in `.env` locally (ignored by git) and in Replit Secrets when deployed. [.env.example](.env.example) lists every key and the milestone that first needs it.
 
+Run the server on a Mac:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload        # http://localhost:8000
+python scripts/try_m0.py         # in a second terminal: five spoken test requests
+```
+
+On Replit (Autoscale deployment), the build command is `pip install -r requirements.txt` and the run command is `uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401.
+
+| File | What it does |
+|---|---|
+| [main.py](main.py) | The web server: checks the token, then `POST /voice` turns a recording into a task |
+| [speech.py](speech.py) | Sends audio to ElevenLabs Scribe and returns the words |
+| [task_parser.py](task_parser.py) | Asks Claude to fill in a fixed task shape (kind, title, date, time, notes) |
+| [scripts/try_m0.py](scripts/try_m0.py) | Speaks five requests with the Mac's voice and checks each answer |
+
 ## Open questions
 
 - A name for the assistant.

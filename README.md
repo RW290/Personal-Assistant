@@ -172,17 +172,17 @@ Run the server on a Mac:
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload        # http://localhost:8000
-python scripts/try_m0.py         # in a second terminal: five spoken test requests
+python scripts/try_m0.py         # in a second terminal: seven spoken test requests
 ```
 
-On Replit (Autoscale deployment), the build command is `pip install -r requirements.txt` and the run command is `uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401.
+On Replit (Autoscale deployment), the build command is `pip install -r requirements.txt` and the run command is `uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
 
 | File | What it does |
 |---|---|
 | [main.py](main.py) | The web server: checks the token, then `POST /voice` turns a recording into a task |
 | [speech.py](speech.py) | Sends audio to ElevenLabs Scribe and returns the words |
-| [task_parser.py](task_parser.py) | Asks Claude to fill in a fixed task shape (kind, title, date, time, notes) |
-| [scripts/try_m0.py](scripts/try_m0.py) | Speaks five requests with the Mac's voice and checks each answer |
+| [task_parser.py](task_parser.py) | Asks Claude Haiku to fill in a fixed task shape (kind, title, date, time, time zone, notes), then code works out the exact moment with the right offset |
+| [scripts/try_m0.py](scripts/try_m0.py) | Speaks seven requests with the Mac's voice and checks each answer |
 
 ## Open questions
 

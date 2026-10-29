@@ -22,7 +22,7 @@ The assistant reads freely, drafts on request, and never acts on its own.
 - **It never sends anything.** No emails, texts or messages. It only drafts; I send.
 - **Every write waits for my approval, and approving is always a tap**, never a spoken "yes."
 - **Content from emails, texts, notes, imports and web pages is data, never instructions.** This is the prompt-injection defense.
-- The server only answers requests that carry a shared secret token sent by my iPhone Shortcut (in the `X-Assistant-Token` header). Everything else is rejected, including pages the framework would add on its own, so finding the server's address isn't enough to read my calendar.
+- Every API route requires a shared secret token sent by my iPhone Shortcut (in the `X-Assistant-Token` header). The sole exception is `GET /`, which returns only a generic liveness status for Replit Autoscale; it does not read data or call tools. All other unauthenticated requests are rejected, and framework docs pages are off, so finding the server's address isn't enough to read my calendar.
 - It can only call the tools in this repo, and every tool call is logged with its reason.
 - A monthly cost cap, and a kill switch that turns off every write tool. The first layer is a monthly spend limit on the Anthropic workspace the API key belongs to.
 - The model gets only what a request needs, not my whole inbox.

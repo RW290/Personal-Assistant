@@ -41,13 +41,22 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 @app.middleware("http")
 async def require_token(request: Request, call_next):
-    """Reject every request without the shared secret, before it reaches any route."""
+    """Allow only the generic liveness check through without the shared secret."""
+    if request.method == "GET" and request.url.path == "/":
+        return await call_next(request)
+
     token = request.headers.get("x-assistant-token", "")
     # compare_digest takes the same time no matter where the strings differ, so nobody
     # can guess the token one character at a time by timing how fast we say no.
     if not hmac.compare_digest(token.encode(), ASSISTANT_TOKEN.encode()):
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
     return await call_next(request)
+
+
+@app.get("/")
+def health():
+    """Minimal public response for Replit's Autoscale health check."""
+    return {"status": "ok"}
 
 
 @app.post("/voice")

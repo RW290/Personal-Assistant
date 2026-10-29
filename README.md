@@ -93,7 +93,7 @@ Passwords and login details are never stored. They stay in my password manager.
 | Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task uses Claude Haiku 5.5, which matched Opus 5.5 on the test requests, faster and at about 1/40 the price |
 | Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Switching models means re-embedding everything |
 | Backend | Python + FastAPI. I considered Django, but this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
-| Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys) |
+| Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 there, 3.11 on the Mac; settings in `.replit` |
 | Data | Postgres with pgvector |
 | Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
 | To-dos | Google Tasks API, writes behind approval |
@@ -180,7 +180,7 @@ uvicorn main:app --reload        # http://localhost:8000
 python scripts/try_m0.py         # in a second terminal: seven spoken test requests
 ```
 
-On Replit (Autoscale deployment), the build command is `pip install -r requirements.txt` and the run command is `uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
+On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which has pip, so Replit installs `requirements.txt` on its own), a workflow that runs the server in the editor, and an Autoscale deployment that runs `python -m uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
 
 | File | What it does |
 |---|---|

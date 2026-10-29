@@ -48,7 +48,7 @@ I want to understand every part of it and be able to explain how and why it work
 | Live conversation (M9) | ElevenLabs Agents with this server as a custom LLM (OpenAI-style streaming endpoint) |
 
 ## Dates and time zones
-- The Shortcut sends the phone's time zone (an IANA name like `America/New_York`) with every request, so "tomorrow at 5" means 5 where I am. A zone I name ("3pm Pacific") wins. If none is sent: `America/New_York`.
+- The Shortcut sends the phone's time zone (an IANA name like `America/New_York`) with every request, so "tomorrow at 5" means 5 where I am. A zone I say wins: a zone ("3pm Pacific", "5 East Coast time"), a place for the time ("noon London time"), or where I'll be then ("I'll be back in Durham by then"). If the phone sends none: `America/New_York`. "When I'm back home" needs facts memory (M1) to know where home is.
 - The model only writes down the date, time and zone I said. Code combines them into one exact datetime with the right offset, so daylight saving changes come out right. The model never does date arithmetic: the prompt lists the next seven dates for it to look up.
 
 ## Memory design

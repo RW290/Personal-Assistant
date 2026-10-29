@@ -104,7 +104,7 @@ Passwords and login details are never stored. They stay in my password manager.
 
 ## Dates and time zones
 
-- The Shortcut sends the phone's time zone (like `America/New_York`) with every request, so "tomorrow at 5" means 5 wherever I am. A zone I name ("3pm Pacific") wins.
+- The Shortcut sends the phone's time zone (like `America/New_York`) with every request, so "tomorrow at 5" means 5 wherever I am. A zone I say wins: a zone ("3pm Pacific", "5 East Coast time"), a place for the time ("noon London time"), or where I'll be then ("I'll be back in Durham by then").
 - The model only writes down the date, time and zone I said. Code combines them into one exact datetime with the right offset, so daylight saving changes come out right. The model never does date arithmetic: the prompt lists the next seven dates for it to look up.
 
 ## Milestones
@@ -177,7 +177,7 @@ Run the server on a Mac:
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload        # http://localhost:8000
-python scripts/try_m0.py         # in a second terminal: seven spoken test requests
+python scripts/try_m0.py         # in a second terminal: eleven spoken test requests
 ```
 
 On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which has pip, so Replit installs `requirements.txt` on its own), a workflow that runs the server in the editor, and an Autoscale deployment that runs `python -m uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
@@ -187,7 +187,7 @@ On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which h
 | [main.py](main.py) | The web server: checks the token, then `POST /voice` turns a recording into a task |
 | [speech.py](speech.py) | Sends audio to ElevenLabs Scribe and returns the words |
 | [task_parser.py](task_parser.py) | Asks Claude Haiku to fill in a fixed task shape (kind, title, date, time, time zone, notes), then code works out the exact moment with the right offset |
-| [scripts/try_m0.py](scripts/try_m0.py) | Speaks seven requests with the Mac's voice and checks each answer |
+| [scripts/try_m0.py](scripts/try_m0.py) | Speaks eleven requests with the Mac's voice, some as if the phone were in California, and checks each answer |
 
 ### iPhone Shortcut
 

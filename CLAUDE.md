@@ -33,10 +33,13 @@ I want to understand every part of it and be able to explain how and why it work
 Sharing personal things is the point of this assistant, so every place my data passes through is locked down:
 - **The GitHub repo is public, so it holds code only.** No real data, transcripts, recordings or personal details in code, tests or docs; tests and demos use made-up people. `.gitignore` blocks data and audio files. Replit Agent commits on its own, so it must never see data files in the workspace.
 - **The Replit App is private.** My data lives only in the database, never in files on Replit (Autoscale deployments don't keep files anyway).
-- **Logs hold no content**: no transcripts, task text or memory in server logs, only sizes, kinds and timings. My data lives in one place, where I can view and delete it.
+- **Logs hold no content**: no transcripts, task text or memory in server logs, only sizes, kinds and timings. My data lives only in the two databases, where I can view and delete it.
 - **The server's URL is public, but every request needs the token.** If the token ever leaks, change it in Replit Secrets and the Shortcut.
-- **AI providers see only what a request needs.** Anthropic doesn't train on API data and deletes it within 30 days. ElevenLabs offers zero retention only to enterprise customers, so Scribe may keep audio and transcripts; the most sensitive voice input (Debrief, Talk it through) may use Whisper locally on my Mac instead. Check OpenAI's terms before M4 embeddings.
-- Where the most sensitive memory lives (Replit's database or my Mac) is decided before M4; see Open questions.
+- **AI providers see only what a request needs.**
+  - Anthropic: its Commercial Terms say "Anthropic may not train models on Customer Content from Services." API inputs and outputs are deleted within 30 days (anything its safety systems flag: up to 2 years). The API keeps no memory between requests; Claude only knows what the server sends each time.
+  - ElevenLabs: its terms let it use what I send to improve its models unless I opt out (account → Terms and Privacy → Data use; not retroactive), give it a permanent license to that content, and offer zero retention only to enterprise customers. Opt out before any real use. The most sensitive voice input (Debriefs) may use Whisper locally on my Mac instead of Scribe; Talk it through runs on ElevenLabs Agents, so recheck its terms before using it for real.
+  - OpenAI (embeddings): check its terms before M4.
+- **Split storage (decided Oct 28).** Everyday data lives in Replit's Postgres so it works while my Mac sleeps: facts, long-term memory, the approval queue, action log and replies queue. The most sensitive memory lives only in a database on my Mac: the people graph and notes, Talk it through summaries, and the values model. The Mac worker connects out to the server (my Mac never accepts incoming connections), answers questions about that memory, and sends back only the pieces a request needs. Replit passes those along but never stores them. While the Mac is asleep, those features say so instead of guessing.
 
 ## Stack
 | Piece | Choice |
@@ -48,7 +51,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Never switch models without re-embedding |
 | Backend | Python + FastAPI. Django was considered and passed on: this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 on Replit, 3.11 on the Mac: code must run on both. `.replit` uses the `python-3.12` module, never `python-base-*` (that one has no pip, so the deploy's automatic install fails); the deployment's run command and port live in `.replit` too |
-| Data | Postgres with pgvector (Replit's database; verify `CREATE EXTENSION vector;` works) |
+| Data | Postgres with pgvector (Replit's database; verify `CREATE EXTENSION vector;` works), plus a database on my Mac for the most sensitive memory (see Privacy) |
 | Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
 | To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later |
 | Texts | The Messages database on my Mac, read-only, via a small local worker |
@@ -63,7 +66,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 ## Memory design
 - **Facts** (Milestone 1): short, stable things about me (where I live, that I want the weather when I wake up, class times, names). A small table, included in every call. `remember` and `forget` tools; every save tells me exactly what was saved.
 - **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those.
-- **People memory, a graph** (core, Milestone 4): who everyone in my life is and how I relate to them, personal and professional. All in Postgres:
+- **People memory, a graph** (core, Milestone 4): who everyone in my life is and how I relate to them, personal and professional. Stored only on my Mac (see Privacy), in plain tables:
   - *nodes*: one per person, company or group
   - *edges*: how they connect (friend, co-president with, works at, manager of), each dated so newer facts replace older ones
   - *notes*: dated summaries of what I said about a person, with embeddings for search by meaning
@@ -118,7 +121,7 @@ How I make decisions, in my own words, in three layers:
 | 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory | "What's on Friday?" answers from the calendar; "add X" waits for approval; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
-| 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; leak test (no draft to one person mentions notes about another); no eval gets worse |
+| 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval, stored on my Mac and served by a first Mac worker; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
 | 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding); Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed |
 | 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |
@@ -131,4 +134,4 @@ No em dashes. Match the tone of my own sent messages.
 ## Open questions
 - A name for the assistant.
 - Which Gmail account (a personal one is likely simpler than Duke's).
-- Where the most sensitive memory lives (people notes, Talk it through, values): Replit's database, or my Mac (private from Replit, but only works while the Mac is awake). Decide before M4.
+- Embeddings for the memory on my Mac: OpenAI (sends the notes to OpenAI) or a local model on the Mac. Decide at M4.

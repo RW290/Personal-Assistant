@@ -124,7 +124,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 
 | Piece | Choice |
 |---|---|
-| Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone |
+| Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone, then show the result as a notification (✓ or ✗ with the error code, and a short message written by code) |
 | Review app | A React PWA on my iPhone's home screen (built with Vite, served by FastAPI): approvals, replies, journal, people notes |
 | Speech to text | ElevenLabs Scribe v2 (`scribe_v2`, English) |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching |
@@ -241,12 +241,16 @@ On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which h
 
 ### iPhone Shortcut
 
-A new shortcut named "Assistant" with four actions:
+A new shortcut named "Assistant" with six actions:
 
 1. **Record Audio**: Start Recording *Immediately*, Finish Recording *On Tap*.
 2. **Format Date**: Date *Current Date*, Date Format *Custom*, Format String `VV` (gives the time zone name, like `America/New_York`).
 3. **Get Contents of URL**: `https://<app>.replit.app/voice`, Method *POST*, header `X-Assistant-Token` set to the token, Request Body *Form* with two fields: `file` (File: *Recorded Audio*) and `timezone` (Text: *Formatted Date*).
-4. **Show Result**: *Contents of URL*.
+4. **Get Dictionary Value**: `title` from *Contents of URL*.
+5. **Get Dictionary Value**: `message` from *Contents of URL*.
+6. **Show Notification**: Title *Dictionary Value* (step 4), body *Dictionary Value* (step 5).
+
+Every response, success or error, has the same `title` and `message` fields, so the Shortcut needs no logic: it shows "✓ Received" with what was understood, or "✗ Error 401" with what went wrong. In Settings → Notifications → Shortcuts, set Show Previews to *When Unlocked* so the message never shows on the lock screen.
 
 Then Settings → Action Button → Shortcut → "Assistant". The shortcut holds the token, so it is never shared.
 

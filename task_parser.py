@@ -87,6 +87,28 @@ def parse_task(transcript: str, local_tz: ZoneInfo) -> Task:
     return response.parsed_output
 
 
+KIND_WORDS = {"todo": "To-do", "event": "Event", "question": "Question", "other": "Noted"}
+
+
+def describe_task(task: dict, local_tz: ZoneInfo) -> str:
+    """A short message for the phone's notification. Code writes it from the task itself,
+    so it always matches what was actually understood."""
+    lines = [f"{KIND_WORDS[task['kind']]}: {task['title']}"]
+    if task["datetime"]:
+        # The saved datetime only has an offset (-08:00); its zone gives the name ("PST").
+        moment = dt.datetime.fromisoformat(task["datetime"]).astimezone(ZoneInfo(task["timezone"]))
+        when = f"{moment:%a, %b} {moment.day} at {moment.hour % 12 or 12}:{moment:%M %p}"
+        if task["timezone"] != local_tz.key:
+            when += f" {moment.tzname()}"  # e.g. "PST", only when it isn't where the phone is
+        lines.append(when)
+    elif task["date"]:
+        day = dt.date.fromisoformat(task["date"])
+        lines.append(f"{day:%a, %b} {day.day}")
+    if task["notes"]:
+        lines.append(task["notes"])
+    return "\n".join(lines)
+
+
 def finish_task(task: Task, local_tz: ZoneInfo) -> dict:
     """Pin the task to an exact moment. Code does this, not the model, so the time zone
     offset is always right, including across daylight saving changes."""

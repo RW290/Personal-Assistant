@@ -141,6 +141,7 @@ Talking at length about my life with no particular person or task in mind: musin
 - One `items` table: each item has a type and, when relevant, a link to a person or place node. Types: friends' funny quotes (linked to who said them), gift ideas (linked to who they're for and who suggested them), travel bucket list (linked to places), shipping addresses (on the person; only ever read back to me).
 - Money owed is a separate `ledger` table: person, amount, direction (I owe / they owe), what for, date, settled. Totals are computed in SQL by a tool; the model never does the arithmetic. It records debts; it never pays anyone.
 - Items come from "remember..." requests on the Action button, Debriefs, or the Notes import.
+- **For later:** gift ideas ("Jordan wants a record player") are a common quick request, but they have nowhere to go until M7. Moving a basic gift list into M1 was considered on Oct 28 and left at M7, since M1 is already full. Revisit if a milestone finishes early.
 - **Passwords and login details are never stored.** They stay in my password manager.
 
 ## Imports (after Nov 22)

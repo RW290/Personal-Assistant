@@ -108,7 +108,7 @@ Things worth keeping that aren't facts or memories go in one `items` table. Each
 - a travel bucket list, linked to places
 - shipping addresses, stored on the person and only ever read back to me
 
-Items come from "remember..." requests on the Action button, Debriefs, or the Apple Notes import.
+Items come from "remember..." requests on the Action button, Debriefs, or the Apple Notes import. Gift ideas are a common quick request, but they wait for this milestone; bringing a basic gift list in sooner is noted for later.
 
 Money owed lives in a separate `ledger` table: person, amount, direction (I owe or they owe), what for, date, and whether it's settled. Totals are computed in SQL by a tool, so the model never does the arithmetic. It records debts; it never pays anyone.
 

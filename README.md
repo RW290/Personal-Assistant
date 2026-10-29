@@ -154,6 +154,17 @@ Sharing personal things is the point of this assistant, so every place my data p
 - The Shortcut sends the phone's time zone (like `America/New_York`) with every request, so "tomorrow at 5" means 5 wherever I am. A zone I say wins: a zone ("3pm Pacific", "5 East Coast time"), a place for the time ("noon London time"), or where I'll be then ("I'll be back in Durham by then").
 - The model only writes down the date, time and zone I said. Code combines them into one exact datetime with the right offset, so daylight saving changes come out right. The model never does date arithmetic: the prompt lists the next seven dates for it to look up.
 
+## Evals
+
+From Milestone 3, every change to prompts, tools or models is checked against a fixed set of test cases before it's merged.
+
+- **A small runner of my own** in `evals/`, calling the app's real code with text in place of audio.
+- **Fake accounts and made-up people**, so an eval never touches my real calendar or email, and the public repo holds no real data.
+- **Graded by code wherever possible** (right tool, right arguments, writes waiting for approval, nothing sent), with an LLM judge only for taste, such as whether a draft sounds like me. The judge counts only once it agrees with my own labels about 90% of the time.
+- **3 to 5 runs per case**, because the model varies: on Oct 28 the same 11 cases scored 10/11, 11/11 and 11/11.
+- **Injection tests are all or nothing**, errors are recorded apart from wrong answers, and cost and latency are reported next to accuracy.
+- **Every run is saved**, and the Milestone 3 run is the baseline that later milestones must not fall below.
+
 ## Milestones
 
 | # | Done by | What works | How we know |

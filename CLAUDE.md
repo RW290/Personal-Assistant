@@ -153,6 +153,22 @@ How I make decisions, in my own words, in three layers:
 3. For a tool call: validate the arguments; if it's a write tool, put it in the approval queue and stop; otherwise run it, log it with its reason, and send the result back.
 4. Repeat until a final answer, with a cap of about 5 rounds. Handle tool errors and bad arguments by telling the model, not crashing.
 
+## Evals (from Milestone 3)
+An eval is a fixed set of test cases plus a grader, run before any change to prompts, tools or models, so I know whether the change helped. The model's answers vary from run to run, so scores are pass rates, not pass or fail.
+- **Our own small runner, no eval framework.** `evals/` holds the cases (JSON Lines) and `run_evals.py`, which calls the app's real code (same prompts, tools and models) with text in place of audio, so most runs skip Scribe. The 11 `try_m0.py` cases are the first ones.
+- **Fake accounts, made-up people.** Calendar, Gmail and Tasks are replaced by made-up fixtures, so an eval can never touch my real accounts and every run sees the same data. Cases use made-up people only, since the repo is public.
+- **Graded by code wherever possible**: the right tool, the right arguments, writes landing in the approval queue instead of running, nothing sent. Grade what ended up in the queue (the outcome), not the exact path the model took.
+- **An LLM judge only for taste** (does a draft sound like me): separate yes/no checks from a written rubric, with Opus as the judge, calibrated on about 20 drafts I label myself. Its scores count only if it agrees with me about 90% of the time. Mechanical rules (no em dashes) are checked by code.
+- **Several runs per case** (3 to 5), reporting the pass rate with its spread and how many cases passed every time. On Oct 28 the same 11 cases scored 10/11, 11/11 and 11/11.
+- **Injection tests are all or nothing**: one proposed write I didn't ask for, or anything sent, fails the set.
+- **Errors aren't wrong answers**: timeouts and API errors are recorded separately, so a bad network day doesn't look like a worse model.
+- **Cost and latency sit next to accuracy**, from the API's own token counts.
+- **Every run is saved**: a dated results file with the model, prompt version, git commit and each case's full transcript. The M3 run is the baseline; "no eval gets worse" (M4 on) means compared with it.
+- **Check the eval itself first**: a known-good answer should score near 100%, and an empty answer near 0%.
+- **Run by hand before merging** any change to prompts, tools or models, not on every push, since it costs money and needs the API keys.
+- **Speech is tested separately**: a few recordings (the Mac's voice, plus my own voice reading made-up sentences, kept out of git) measure transcription mistakes and whether Scribe keyterms fix names.
+- **Real mistakes become cases**: when the action log shows one, it's rewritten with made-up details and added.
+
 ## Milestones
 | # | Done by | What works | How we know |
 |---|---|---|---|

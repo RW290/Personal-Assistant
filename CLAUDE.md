@@ -10,8 +10,8 @@ I want to understand every part of it and be able to explain how and why it work
   - Milestone 0: Action button → Scribe → Claude Haiku → a task as JSON with the exact date, time and time zone (including zones I name and where I'll be). Deployed on Replit and working from my iPhone. The Mac test script's 11 spoken requests: 32 of 33 right over three runs.
   - Privacy basics: no content in server logs, data and recordings kept out of the public repo, Replit-only storage decided, ElevenLabs training opt-out.
   - Replit set up: the `python-3.12` module, publish settings in `.replit`, rules for Replit Agent in `replit.md`.
-  - GitHub repo description and topics.
-- **In review**: PR #8 (plan: Journal mode with talking back, the React web app, how recall works, costs, LangGraph for M6, the action log, evals, multiple relationships, one Shortcut for quick requests) and PR #9 (web app sign-in and approval queue with made-up items, check mark or X results for the Shortcut, keys read in `config.py`). Merge #8, then #9.
+  - GitHub repo description (the finished assistant, kept in sync with the plan) and topics.
+- **In review**: PR #8 (plan: Journal mode with talking back, the React web app, how recall works, costs, LangGraph for M6, the action log, evals, multiple relationships, one Shortcut for quick requests, keeping the repo description in sync) and PR #9 (web app sign-in and approval queue with made-up items, check mark or X results for the Shortcut, keys read in `config.py`). Merge #8, then #9.
 - **Next: Milestone 1 (due Sat Oct 31).** I write the agent loop, approval queue and action log. Then the task, calendar and Google Tasks tools, Google sign-in, Postgres on Replit, facts memory, and plugging my approval queue into the web app.
 - **Waiting on me**: the 4-line Milestone 0 write-up; updating the Shortcut to show the notification.
 
@@ -24,6 +24,7 @@ I want to understand every part of it and be able to explain how and why it work
 - Whenever we change the plan (a decision, a model or tool choice, a milestone), write it into this file in the same change.
 - Keep the Status section below current: update it in the same change whenever something is finished, merged, or the next step changes.
 - Keep `README.md` in sync with this file. Whenever CLAUDE.md changes, update the README in the same change so it never describes an old plan.
+- Keep the GitHub repo description in sync with the plan too. It describes the finished assistant, not what works today: mostly what it does, then a short list of the main tools (Claude, LangGraph, and so on). Whenever a plan change affects it, update it in the same change with `gh repo edit --description` (350 characters at most). I've okayed these updates, so no need to ask first.
 - Commit freely, but always on a new branch with a pull request into `main`, so I can review it on GitHub. Never push to `main` directly; I merge. The repo is public: check every commit for secrets before pushing.
 
 ## Hard trust rules (do not break these, in code or in suggestions)

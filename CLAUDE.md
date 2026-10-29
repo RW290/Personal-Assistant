@@ -37,11 +37,11 @@ Sharing personal things is the point of this assistant, so every place my data p
 - **The server's URL is public, but every request needs the token.** If the token ever leaks, change it in Replit Secrets and the Shortcut.
 - **AI providers see only what a request needs.**
   - Anthropic: its Commercial Terms say "Anthropic may not train models on Customer Content from Services." API inputs and outputs are deleted within 30 days (anything its safety systems flag: up to 2 years). The API keeps no memory between requests; Claude only knows what the server sends each time.
-  - ElevenLabs: its terms let it use what I send to improve its models unless I opt out (account → Terms and Privacy → Data use; not retroactive), give it a permanent license to that content, and offer zero retention only to enterprise customers. Opt out before any real use. The most sensitive voice input (Debriefs) may be transcribed on the device instead of by Scribe (decide at M4); Talk it through runs on ElevenLabs Agents, so recheck its terms before using it for real.
+  - ElevenLabs: its terms let it use what I send to improve its models unless I opt out (account → Terms and Privacy → Data use; not retroactive), give it a permanent license to that content, and offer zero retention only to enterprise customers. Opted out of training (Oct 28). The most sensitive voice input (Debriefs, journal entries) may be transcribed on the device instead of by Scribe (decide at M4); Talk it through runs on ElevenLabs Agents, so recheck its terms before using it for real.
   - OpenAI (embeddings): check its terms before M4.
 - **Storage: Replit only (decided Oct 28).** All my data lives in Replit's Postgres, including the people graph, Talk it through summaries and the values model, so everything works while my Mac sleeps. Protections:
   - Separate development and live databases. Replit Agent never touches the live one.
-  - From M4, people notes, Talk it through summaries and values are encrypted in the database, with the key in Replit Secrets, so a copy of the database (or an AI reading it) shows only scrambled text. Their embeddings stay unencrypted so search still works.
+  - From M4, people notes, journal entries, Talk it through summaries and values are encrypted in the database, with the key in Replit Secrets, so a copy of the database (or an AI reading it) shows only scrambled text. Their embeddings stay unencrypted so search still works.
   - Regular encrypted backups to my Mac, so a deletion can't wipe everything.
   - This doesn't protect against Replit itself or a legal order to Replit, which holds both the data and the key. Keeping the most sensitive memory on my Mac was considered and passed on: it only works while the Mac is awake.
 
@@ -51,7 +51,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone |
 | Speech to text | ElevenLabs Scribe v2 (`model_id` `scribe_v2`, English). Starter plan |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching |
-| Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task (M0) uses Claude Haiku 5.5 (`claude-haiku-5-5`): it matched Opus 5.5 on the test requests, faster and at about 1/40 the price |
+| Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task (M0) uses Claude Haiku 5.5 (`claude-haiku-5-5`): it matched Opus 5.5 on the test requests, faster and at about 1/40 the price. Journal mode (M4) uses Claude Opus 5.5 (`claude-opus-5-5`) |
 | Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Never switch models without re-embedding |
 | Backend | Python + FastAPI. Django was considered and passed on: this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 on Replit, 3.11 on the Mac: code must run on both. `.replit` uses the `python-3.12` module, never `python-base-*` (that one has no pip, so the deploy's automatic install fails); the deployment's run command and port live in `.replit` too |
@@ -78,6 +78,17 @@ Sharing personal things is the point of this assistant, so every place my data p
 - Input is a "Debrief" Shortcut: I talk for a few minutes about a person, meeting or conflict. The model extracts people, relationships and events and shows me what it plans to save. Nothing is saved until I tap approve; I can edit or drop any line.
 - We build this ourselves on plain tables rather than using Graphiti or Mem0, so I understand every part.
 - Rules: record what I said, in my words; never label or diagnose anyone or state something about a person I didn't say. What I said about one person never appears in anything written to someone else. People notes are the most sensitive data: viewable and deletable by me, never in demos (demos use made-up people).
+
+## Journal mode (Milestone 4, built with Debrief)
+Talking at length about my life with no particular person or task in mind: musings, things I want off my chest. The same flow as Debrief, without needing a single subject. Back-and-forth conversation stays with Talk it through.
+- Started from a separate "Journal" Shortcut (or a two-option menu on the Action button). Recordings can be long; recording stops when I tap.
+- Long recordings: the server answers "got it" right away and finishes in the background, and the result goes to the replies queue. Check that Replit Autoscale keeps working after it has answered; if it doesn't, use a Reserved VM deployment.
+- Runs on Claude Opus 5.5 (`claude-opus-5-5`), not Haiku: reflection needs the stronger model, and an entry costs about 1 to 2 cents.
+- It shows me a short summary in my words (no advice unless I ask, never labeling or diagnosing me), suggested memories (people, events, facts about me) and suggested to-dos I mentioned.
+- Nothing is kept without a tap: Save keeps the entry, and I tap the memories and to-dos I want. I can say something out loud and not keep it.
+- Entries are encrypted in the database. They're used when I ask about them, never in anything written to someone else.
+- If something heavy comes up, it can gently suggest talking with a friend or a counselor too.
+- Check how many transcription hours the ElevenLabs Starter plan includes; daily journaling uses a lot of them.
 
 ## Lists and records (Milestone 7)
 - One `items` table: each item has a type and, when relevant, a link to a person or place node. Types: friends' funny quotes (linked to who said them), gift ideas (linked to who they're for and who suggested them), travel bucket list (linked to places), shipping addresses (on the person; only ever read back to me).
@@ -125,7 +136,7 @@ How I make decisions, in my own words, in three layers:
 | 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory | "What's on Friday?" answers from the calendar; "add X" waits for approval; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
-| 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval, its notes encrypted in the database; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; leak test (no draft to one person mentions notes about another); no eval gets worse |
+| 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode (long recordings, Opus, encrypted entries) with approval; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
 | 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding); Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed |
 | 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |

@@ -4,7 +4,7 @@ A voice-first personal assistant on my iPhone's Action button. I press it and sp
 
 I'm building it by hand, in small working steps, so I can explain how and why every part works. The core agent loop (tool calling, approval queue, action log) is written from scratch, with no agent frameworks. Later, the Milestone 6 router is built with LangGraph and compared against it.
 
-**Status:** Milestone 0 (voice in, task out) works from the Action button. Next: Milestone 1, the hand-written agent loop.
+**Status:** Milestone 0 (voice in, task out) works from the Action button. The web app's first screens (sign-in and approvals) are in review. Next: Milestone 1, the hand-written agent loop.
 
 ## Trust rules
 
@@ -70,7 +70,8 @@ One central place to review and act, installed on my iPhone's home screen as a P
 - **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those. It searches long-term memories, journal chunks and people notes together; people are also found through their graph links (who is connected to whom), which search by meaning alone misses. Encrypted items are searched by their embeddings, and only the matches are decrypted and sent to the model.
 - **People memory, a graph** (Milestone 4): who everyone in my life is and how I relate to them, personal and professional. All in Postgres, with the notes encrypted:
   - *nodes*: one per person, company or group
-  - *edges*: how they connect (friend, co-president with, works at, manager of), each dated so newer facts replace older ones
+  - *edges*: how they connect (friend, co-president with, works at, manager of, father of). Two people can have several at once (someone's dad can also be their boss), so each edge is its own row with a direction, start and end dates, and the note it came from
+  - a newer fact ends only the edge it replaces by setting its end date, so history stays ("was my manager until June")
   - *notes*: dated summaries of what I said about a person, with embeddings for search by meaning
   - a short per-person summary, rewritten when new notes arrive
 
@@ -166,6 +167,7 @@ From Milestone 3, every change to prompts, tools or models is checked against a 
 - **3 to 5 runs per case**, because the model varies: on Oct 28 the same 11 cases scored 10/11, 11/11 and 11/11.
 - **Injection tests are all or nothing**, errors are recorded apart from wrong answers, and cost and latency are reported next to accuracy.
 - **Every run is saved**, and the Milestone 3 run is the baseline that later milestones must not fall below.
+- **For later**: Claude Code's `/claude-api build-eval` command to build the first eval set (Milestone 3), and LangSmith next to my own runner in Milestone 6, on made-up data only.
 
 ## Milestones
 
@@ -175,7 +177,7 @@ From Milestone 3, every change to prompts, tools or models is checked against a 
 | 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
-| 4 | Sun Nov 8 | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
+| 4 | Sun Nov 8 | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented, including two people with two relationships at once; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
 | 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding), built with LangGraph; Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed; a write-up comparing the LangGraph router with my hand-written M1 loop (lines of code, M3 eval scores, latency, cost) |
 | 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |

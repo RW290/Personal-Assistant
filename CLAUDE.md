@@ -5,6 +5,16 @@ A voice-first personal assistant on my iPhone's Action button. I press it and sp
 
 I want to understand every part of it and be able to explain how and why it works.
 
+## Status (updated Oct 28)
+- **Done**
+  - Milestone 0: Action button → Scribe → Claude Haiku → a task as JSON with the exact date, time and time zone (including zones I name and where I'll be). Deployed on Replit and working from my iPhone. The Mac test script's 11 spoken requests: 32 of 33 right over three runs.
+  - Privacy basics: no content in server logs, data and recordings kept out of the public repo, Replit-only storage decided, ElevenLabs training opt-out.
+  - Replit set up: the `python-3.12` module, publish settings in `.replit`, rules for Replit Agent in `replit.md`.
+  - GitHub repo description and topics.
+- **In review**: PR #8 (plan: Journal mode with talking back, the React web app, how recall works, costs, LangGraph for M6, the action log, evals, multiple relationships) and PR #9 (web app sign-in and approval queue with made-up items, check mark or X results for the Shortcut, keys read in `config.py`). Merge #8, then #9.
+- **Next: Milestone 1 (due Sat Oct 31).** I write the agent loop, approval queue and action log. Then the task, calendar and Google Tasks tools, Google sign-in, Postgres on Replit, facts memory, and plugging my approval queue into the web app.
+- **Waiting on me**: the 4-line Milestone 0 write-up; updating the Shortcut to show the notification.
+
 ## How to work with me
 - Explain changes in plain, simple terms. Say what a piece of code does and why, not just what you changed.
 - I write the core agent loop myself (the tool-calling loop, approval queue and action log). For those files, guide me and review my code instead of writing them wholesale, unless I ask you to.
@@ -12,6 +22,7 @@ I want to understand every part of it and be able to explain how and why it work
 - Small, working steps. After each milestone, help me write a 4-line write-up: the problem, what I tried, numbers before and after, what's next.
 - Never put API keys in code. They live in `.env` locally (listed in `.gitignore`) and in Replit Secrets when deployed. Never commit `.env`.
 - Whenever we change the plan (a decision, a model or tool choice, a milestone), write it into this file in the same change.
+- Keep the Status section below current: update it in the same change whenever something is finished, merged, or the next step changes.
 - Keep `README.md` in sync with this file. Whenever CLAUDE.md changes, update the README in the same change so it never describes an old plan.
 - Commit freely, but always on a new branch with a pull request into `main`, so I can review it on GitHub. Never push to `main` directly; I merge. The repo is public: check every commit for secrets before pushing.
 
@@ -91,7 +102,9 @@ One central place to review and act, installed on my iPhone's home screen. The A
 - **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those. It searches long-term memories, journal chunks and people notes together; people are also found through their graph links (who is connected to whom), which search by meaning alone misses. Encrypted items are searched by their embeddings, and only the matches are decrypted and sent to the model.
 - **People memory, a graph** (core, Milestone 4): who everyone in my life is and how I relate to them, personal and professional. All in Postgres, with the notes encrypted (see Privacy):
   - *nodes*: one per person, company or group
-  - *edges*: how they connect (friend, co-president with, works at, manager of), each dated so newer facts replace older ones
+  - *edges*: how they connect (friend, co-president with, works at, manager of, father of). Two people can have several edges at once (someone's dad can also be their boss), so each edge is its own row: from whom, to whom, what kind, since when, until when, and the note it came from
+  - edges have a direction ("Sam is father of Alex"); the reverse ("Alex is Sam's son") is worked out, not stored twice
+  - a newer fact ends only the edge it replaces (the same kind, or one it contradicts) by setting its end date, so history stays ("was my manager until June") and nothing is deleted
   - *notes*: dated summaries of what I said about a person, with embeddings for search by meaning
   - a short per-person summary, rewritten when new notes arrive
 - Input is a "Debrief" Shortcut: I talk for a few minutes about a person, meeting or conflict. The model extracts people, relationships and events and shows me what it plans to save. Nothing is saved until I tap approve; I can edit or drop any line.
@@ -180,6 +193,7 @@ An eval is a fixed set of test cases plus a grader, run before any change to pro
 - **Run by hand before merging** any change to prompts, tools or models, not on every push, since it costs money and needs the API keys.
 - **Speech is tested separately**: a few recordings (the Mac's voice, plus my own voice reading made-up sentences, kept out of git) measure transcription mistakes and whether Scribe keyterms fix names.
 - **Real mistakes become cases**: when the action log shows one, it's rewritten with made-up details and added.
+- **For later**: when M3 starts, Claude Code's `/claude-api build-eval` command walks through building the eval set step by step. In M6, try LangSmith (LangChain's eval and tracing tool) next to our runner, for the comparison and the resume, only on eval runs with made-up data and never on real requests, since it sends every run to LangChain's servers.
 
 ## Milestones
 | # | Done by | What works | How we know |
@@ -188,7 +202,7 @@ An eval is a fixed set of test cases plus a grader, run before any change to pro
 | 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
-| 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
+| 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented, including two people with two relationships at once; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
 | 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding), built with LangGraph; Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed; a write-up comparing the LangGraph router with my hand-written M1 loop (lines of code, M3 eval scores, latency, cost) |
 | 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |

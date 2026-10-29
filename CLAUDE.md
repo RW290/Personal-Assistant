@@ -8,7 +8,7 @@ I want to understand every part of it and be able to explain how and why it work
 ## How to work with me
 - Explain changes in plain, simple terms. Say what a piece of code does and why, not just what you changed.
 - I write the core agent loop myself (the tool-calling loop, approval queue and action log). For those files, guide me and review my code instead of writing them wholesale, unless I ask you to.
-- Python 3. Keep dependencies small. No agent frameworks (LangChain etc.) until after Milestone 4; we may compare one later.
+- Python 3. Keep dependencies small. No agent frameworks (LangChain etc.) until after Milestone 4. Then Milestone 6's router is built with LangGraph and compared against my hand-written loop: employers look for LangGraph, and the comparison shows I know what it does underneath.
 - Small, working steps. After each milestone, help me write a 4-line write-up: the problem, what I tried, numbers before and after, what's next.
 - Never put API keys in code. They live in `.env` locally (listed in `.gitignore`) and in Replit Secrets when deployed. Never commit `.env`.
 - Whenever we change the plan (a decision, a model or tool choice, a milestone), write it into this file in the same change.
@@ -33,7 +33,9 @@ I want to understand every part of it and be able to explain how and why it work
 Sharing personal things is the point of this assistant, so every place my data passes through is locked down:
 - **The GitHub repo is public, so it holds code only.** No real data, transcripts, recordings or personal details in code, tests or docs; tests and demos use made-up people. `.gitignore` blocks data and audio files. Replit Agent commits on its own, so it must never see data files in the workspace.
 - **The Replit App is private.** My data lives only in the database, never in files on Replit (Autoscale deployments don't keep files anyway).
-- **Logs hold no content**: no transcripts, task text or memory in server logs, only sizes, kinds and timings. My data lives only in the two databases, where I can view and delete it.
+- **Server logs hold no content.** Replit's console logs get only sizes, kinds and timings, never transcripts, task text or memory, because I can't properly view or delete them there.
+- **The action log is where I see what it did.** It records each request (what I asked, the transcript) and each tool call with its reason, in the database, shown in the web app, and deletes entries after 7 days. Journal, Debrief and Talk it through content isn't copied into it, since it would sit there unencrypted; the log only notes that an entry was made.
+- **No telemetry**: no analytics or tracing services. Nothing about how I use it leaves the server except the API calls a request needs.
 - **The server's URL is public, but every request needs the token.** If the token ever leaks, change it in Replit Secrets and the Shortcut.
 - **AI providers see only what a request needs.**
   - Anthropic: its Commercial Terms say "Anthropic may not train models on Customer Content from Services." API inputs and outputs are deleted within 30 days (anything its safety systems flag: up to 2 years). The API keeps no memory between requests; Claude only knows what the server sends each time.
@@ -51,7 +53,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone, then show the result as a notification (✓ or ✗ with the error code, and a short message written by code) |
 | Review app | A React PWA on my iPhone's home screen (built with Vite, served by FastAPI): approvals, replies, journal, people notes |
 | Speech to text | ElevenLabs Scribe v2 (`model_id` `scribe_v2`, English). Starter plan |
-| Text to speech | ElevenLabs, on request only, generated when I press play, with caching |
+| Text to speech | ElevenLabs, on request only, generated when I press play, with caching. Journal conversations use a custom voice I provide (a voice clone) |
 | Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task (M0) uses Claude Haiku 5.5 (`claude-haiku-5-5`): it matched Opus 5.5 on the test requests, faster and at about 1/40 the price. Journal mode (M4) uses Claude Opus 5.5 (`claude-opus-5-5`) |
 | Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Never switch models without re-embedding |
 | Backend | Python + FastAPI. Django was considered and passed on: this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
@@ -97,7 +99,7 @@ One central place to review and act, installed on my iPhone's home screen. The A
 - Rules: record what I said, in my words; never label or diagnose anyone or state something about a person I didn't say. What I said about one person never appears in anything written to someone else. People notes are the most sensitive data: viewable and deletable by me, never in demos (demos use made-up people).
 
 ## Journal mode (Milestone 4, built with Debrief)
-Talking at length about my life with no particular person or task in mind: musings, things I want off my chest. The same flow as Debrief, without needing a single subject. Back-and-forth conversation stays with Talk it through.
+Talking at length about my life with no particular person or task in mind: musings, things I want off my chest. The same flow as Debrief, without needing a single subject. I can also talk with it instead of at it (Talking back, below).
 - Recorded in the web app, not from another Shortcut, since it doesn't need quick access. Recordings can be long; recording stops when I tap.
 - Long recordings: the server answers "got it" right away and finishes in the background, and the result goes to the replies queue. Check that Replit Autoscale keeps working after it has answered; if it doesn't, use a Reserved VM deployment.
 - Runs on Claude Opus 5.5 (`claude-opus-5-5`), not Haiku: reflection needs the stronger model, and an entry costs about 1 to 2 cents.
@@ -105,6 +107,11 @@ Talking at length about my life with no particular person or task in mind: musin
 - Nothing is kept without a tap: Save keeps the entry, and I tap the memories and to-dos I want. I can say something out loud and not keep it.
 - Entries are encrypted in the database. Long entries are split into chunks, each with its own embedding, so recall finds the relevant part. They're used when I ask about them, never in anything written to someone else.
 - If something heavy comes up, it can gently suggest talking with a friend or a counselor too.
+- **Talking back (after M9):** a longer back-and-forth voice conversation from the Journal screen, to bounce ideas off it or think through a decision with my values in mind (it uses the values model). It's the same live conversation as Talk it through, widened from conflicts to anything on my mind, running on ElevenLabs Agents inside the web app.
+  - It speaks in a custom voice I provide: an ElevenLabs voice clone. A clone means giving ElevenLabs recordings of that voice, so check its voice-cloning terms first. Cloning anyone else's voice needs their permission.
+  - Live conversation needs quick replies, so each turn may use a faster model than Opus, with Opus writing the summary at the end. Decide at M9.
+  - Long conversations use a lot of ElevenLabs time and characters, so check the plan's limits.
+  - What it should and shouldn't do in these conversations gets worked out before it's built (see Open questions). Until then the Talk it through rules apply: only I start it, it's honest rather than just agreeable, it supports rather than replaces people, and nothing is kept without my approval.
 - Check how many transcription hours the ElevenLabs Starter plan includes; daily journaling uses a lot of them.
 
 ## Lists and records (Milestone 7)
@@ -118,7 +125,7 @@ Talking at length about my life with no particular person or task in mind: musin
 - Instagram: no official API for a personal account's saved posts, and no scraping. Use Instagram's "Download your information" JSON export (posts, saved, likes, topics) and import it periodically.
 
 ## "Talk it through" mode (after Nov 22; builds on M4, M5, M9)
-A live voice conversation (ElevenLabs Agents) for personal matters: conflicts, falling-outs, breakups.
+A live voice conversation (ElevenLabs Agents) for personal matters: conflicts, falling-outs, breakups. Journal's Talking back uses the same conversation for anything else I want to think through out loud.
 - Only I start it. It never raises a past conflict on its own.
 - With my okay for that conversation, it pulls in the relevant people memory, text thread and my values model.
 - Its job: listen, ask questions, help me understand what happened and the other person's view, help me plan what to say (a draft text I send myself, if I want one).
@@ -158,16 +165,32 @@ Each approval queue item has these fields, which the web app shows:
 
 The web app reads the queue through `GET /api/approvals` and decides with `POST /api/approvals/{id}/approve` or `/reject`. Until my queue exists, `approvals.py` serves made-up items behind those routes.
 
+## Evals (from Milestone 3)
+An eval is a fixed set of test cases plus a grader, run before any change to prompts, tools or models, so I know whether the change helped. The model's answers vary from run to run, so scores are pass rates, not pass or fail.
+- **Our own small runner, no eval framework.** `evals/` holds the cases (JSON Lines) and `run_evals.py`, which calls the app's real code (same prompts, tools and models) with text in place of audio, so most runs skip Scribe. The 11 `try_m0.py` cases are the first ones.
+- **Fake accounts, made-up people.** Calendar, Gmail and Tasks are replaced by made-up fixtures, so an eval can never touch my real accounts and every run sees the same data. Cases use made-up people only, since the repo is public.
+- **Graded by code wherever possible**: the right tool, the right arguments, writes landing in the approval queue instead of running, nothing sent. Grade what ended up in the queue (the outcome), not the exact path the model took.
+- **An LLM judge only for taste** (does a draft sound like me): separate yes/no checks from a written rubric, with Opus as the judge, calibrated on about 20 drafts I label myself. Its scores count only if it agrees with me about 90% of the time. Mechanical rules (no em dashes) are checked by code.
+- **Several runs per case** (3 to 5), reporting the pass rate with its spread and how many cases passed every time. On Oct 28 the same 11 cases scored 10/11, 11/11 and 11/11.
+- **Injection tests are all or nothing**: one proposed write I didn't ask for, or anything sent, fails the set.
+- **Errors aren't wrong answers**: timeouts and API errors are recorded separately, so a bad network day doesn't look like a worse model.
+- **Cost and latency sit next to accuracy**, from the API's own token counts.
+- **Every run is saved**: a dated results file with the model, prompt version, git commit and each case's full transcript. The M3 run is the baseline; "no eval gets worse" (M4 on) means compared with it.
+- **Check the eval itself first**: a known-good answer should score near 100%, and an empty answer near 0%.
+- **Run by hand before merging** any change to prompts, tools or models, not on every push, since it costs money and needs the API keys.
+- **Speech is tested separately**: a few recordings (the Mac's voice, plus my own voice reading made-up sentences, kept out of git) measure transcription mistakes and whether Scribe keyterms fix names.
+- **Real mistakes become cases**: when the action log shows one, it's rewritten with made-up details and added.
+
 ## Milestones
 | # | Done by | What works | How we know |
 |---|---|---|---|
 | 0 | Oct 27 | Action button → transcript → a task as JSON (kind, title, date, time, time zone, exact datetime, notes) | Five spoken requests come out right |
-| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
+| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
 | 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
-| 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding); Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed |
+| 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding), built with LangGraph; Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed; a write-up comparing the LangGraph router with my hand-written M1 loop (lines of code, M3 eval scores, latency, cost) |
 | 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |
 | 8 | Tue Nov 17 | Cost cap, kill switch, full test suite; project site with a demo (the web app in demo mode, with made-up people) | The whole suite passes |
 | 9 | Sun Nov 22 | Live voice conversation via ElevenLabs Agents | One conversation adds a to-do, drafts a text, answers a calendar question, with the same eval scores as text |
@@ -178,3 +201,4 @@ No em dashes. Match the tone of my own sent messages.
 ## Open questions
 - A name for the assistant.
 - Which Gmail account (a personal one is likely simpler than Duke's).
+- The responsible-AI rules for Journal conversations: what it should and shouldn't do (advice, decisions, heavy topics, how honest to be, what it remembers). Decide before building them.

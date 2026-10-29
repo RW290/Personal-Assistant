@@ -52,6 +52,8 @@ flowchart LR
 3. For a tool call: validate the arguments. If it's a write tool, put it in the approval queue and stop. Otherwise run it, log it with its reason, and send the result back.
 4. Repeat until a final answer, with a cap of about 5 rounds. Tool errors and bad arguments are reported back to the model instead of crashing.
 
+Each item in the approval queue has an id; a summary of what will change, written by code from the exact arguments so what I approve is exactly what runs; the model's reason; the tool and its exact arguments; the read tools it used to get there; what I asked; a status (pending, approved, rejected, done or failed); and when it was created and decided.
+
 ## Web app
 
 One central place to review and act, installed on my iPhone's home screen as a PWA. The Action button stays for quick capture; anything long or worth reviewing happens in the app.
@@ -60,7 +62,7 @@ One central place to review and act, installed on my iPhone's home screen as a P
 - Journal entries are recorded right in the app. Long recordings upload with progress and are processed in the background.
 - Built with React (Vite) and served as static files by the FastAPI server, so it's one deployment at one address.
 - It caches only its own files, never my data, so nothing personal is stored offline on the phone.
-- Sign-in starts with the token (pasted once; the app gets its own session cookie) and moves to a passkey with Face ID before journal entries and people notes show up.
+- Sign-in starts with the token (pasted once; the app gets its own two-week session cookie, which page scripts can't read) and moves to a passkey with Face ID before journal entries and people notes show up.
 
 ## Memory
 
@@ -220,15 +222,19 @@ Run the server on a Mac:
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload        # http://localhost:8000
+(cd web && npm install && npm run build)   # build the web app into web/dist
+uvicorn main:app --reload        # http://localhost:8000, web app at /app/
 python scripts/try_m0.py         # in a second terminal: eleven spoken test requests
 ```
 
-On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which has pip, so Replit installs `requirements.txt` on its own), a workflow that runs the server in the editor, and an Autoscale deployment that runs `python -m uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
+On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which has pip, so Replit installs `requirements.txt` on its own), a workflow that runs the server in the editor, and an Autoscale deployment that runs `python -m uvicorn main:app --host 0.0.0.0 --port 8000`. Every data request needs the `X-Assistant-Token` header (the Shortcut) or a signed-in web app session; anything else gets a 401. The built web app (`web/dist`) is committed, so Replit needs no Node; rebuild it before committing app changes. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
 
 | File | What it does |
 |---|---|
-| [main.py](main.py) | The web server: checks the token, then `POST /voice` turns a recording into a task |
+| [main.py](main.py) | The web server: checks the token or web app session on every request, then `POST /voice` turns a recording into a task |
+| [webapp.py](webapp.py) | The web app's server side: sign-in, the approval routes, and serving the built app at `/app` |
+| [approvals.py](approvals.py) | The approval item's shape, and made-up items until my approval queue exists |
+| [web/](web/) | The React web app (Vite): sign-in and the approval queue |
 | [speech.py](speech.py) | Sends audio to ElevenLabs Scribe and returns the words |
 | [task_parser.py](task_parser.py) | Asks Claude Haiku to fill in a fixed task shape (kind, title, date, time, time zone, notes), then code works out the exact moment with the right offset |
 | [scripts/try_m0.py](scripts/try_m0.py) | Speaks eleven requests with the Mac's voice, some as if the phone were in California, and checks each answer |

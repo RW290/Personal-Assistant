@@ -1,4 +1,5 @@
 """The assistant's web server. Milestone 0: a voice recording in, a task out as JSON.
+It also serves the web app (see webapp.py).
 
 Run locally:  uvicorn main:app --reload
 """
@@ -28,6 +29,8 @@ from task_parser import (  # noqa: E402
     get_timezone,
     parse_task,
 )
+from webapp import SESSION_COOKIE, mount_app, valid_session  # noqa: E402
+from webapp import router as web_router  # noqa: E402
 
 ASSISTANT_TOKEN = os.environ["ASSISTANT_TOKEN"]
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # a minute of iPhone audio is about 1 MB
@@ -39,16 +42,28 @@ log = logging.getLogger("assistant")
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
+def is_public(request: Request) -> bool:
+    """The only routes anyone may reach. None of them hold data."""
+    method, path = request.method, request.url.path
+    return (
+        (method == "GET" and path == "/")  # Replit's health check
+        or (method == "GET" and (path == "/app" or path.startswith("/app/")))  # the web app's own files
+        or (method == "POST" and path == "/api/login")  # the sign-in form
+    )
+
+
 @app.middleware("http")
-async def require_token(request: Request, call_next):
-    """Allow only the generic liveness check through without the shared secret."""
-    if request.method == "GET" and request.url.path == "/":
+async def require_sign_in(request: Request, call_next):
+    """Reject every request that isn't public and carries neither the token (the Shortcut)
+    nor a signed-in session (the web app), before it reaches any route."""
+    if is_public(request):
         return await call_next(request)
 
     token = request.headers.get("x-assistant-token", "")
     # compare_digest takes the same time no matter where the strings differ, so nobody
     # can guess the token one character at a time by timing how fast we say no.
-    if not hmac.compare_digest(token.encode(), ASSISTANT_TOKEN.encode()):
+    has_token = hmac.compare_digest(token.encode(), ASSISTANT_TOKEN.encode())
+    if not (has_token or valid_session(request.cookies.get(SESSION_COOKIE, ""))):
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
     return await call_next(request)
 
@@ -92,3 +107,7 @@ def voice(file: UploadFile, timezone: str = Form(DEFAULT_TIMEZONE)):
     # (the database) where I can see and delete my data. Sizes and kinds only.
     log.info("voice: %d bytes of audio, %d characters, kind=%s", len(audio), len(transcript), task["kind"])
     return {"transcript": transcript, "task": task}
+
+
+app.include_router(web_router)
+mount_app(app)

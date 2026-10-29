@@ -83,6 +83,17 @@ Money owed lives in a separate `ledger` table: person, amount, direction (I owe 
 
 Passwords and login details are never stored. They stay in my password manager.
 
+## Privacy
+
+Sharing personal things is the point of this assistant, so every place my data passes through is locked down:
+
+- **This repo holds code only.** No real data, transcripts, recordings or personal details; tests and demos use made-up people. `.gitignore` blocks data and audio files.
+- **The Replit App is private**, and my data lives only in its database, never in files.
+- **Logs hold no content**: no transcripts, task text or memory, only sizes, kinds and timings. My data lives in one place, where I can view and delete it.
+- **The server's address is public, but every request needs the token.** A leaked token gets replaced in Replit Secrets and the Shortcut.
+- **AI providers see only what a request needs.** Anthropic doesn't train on API data and deletes it within 30 days. ElevenLabs offers zero retention only to enterprise customers, so the most sensitive voice input (Debrief, Talk it through) may use Whisper locally on my Mac instead.
+- Where the most sensitive memory lives (Replit's database or my Mac) is decided before Milestone 4.
+
 ## Stack
 
 | Piece | Choice |
@@ -96,7 +107,7 @@ Passwords and login details are never stored. They stay in my password manager.
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 there, 3.11 on the Mac; settings in `.replit` |
 | Data | Postgres with pgvector |
 | Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
-| To-dos | Google Tasks API, writes behind approval |
+| To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later |
 | Texts | The Messages database on my Mac, read-only, via a small local worker |
 | Coding tool | Claude Code run headless by the Mac worker, in a fresh git worktree of an allowed repo |
 | Weather | Open-Meteo (free, no key), using my saved city |
@@ -204,6 +215,7 @@ Then Settings → Action Button → Shortcut → "Assistant". The shortcut holds
 
 - A name for the assistant.
 - Which Gmail account to use (a personal one is likely simpler than Duke's).
+- Where the most sensitive memory lives (people notes, Talk it through, values): Replit's database, or my Mac (private from Replit, but only works while the Mac is awake). Decide before M4.
 
 ## License
 

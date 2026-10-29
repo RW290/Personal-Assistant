@@ -29,6 +29,15 @@ I want to understand every part of it and be able to explain how and why it work
 - My writing style is learned only from messages **I sent**. Other people's messages are context for the thread being answered, never style examples.
 - It never speaks on its own. Replies are saved to a replies queue and read aloud only when I ask (Action button with no speech, or "what's new?").
 
+## Privacy: who can see my data
+Sharing personal things is the point of this assistant, so every place my data passes through is locked down:
+- **The GitHub repo is public, so it holds code only.** No real data, transcripts, recordings or personal details in code, tests or docs; tests and demos use made-up people. `.gitignore` blocks data and audio files. Replit Agent commits on its own, so it must never see data files in the workspace.
+- **The Replit App is private.** My data lives only in the database, never in files on Replit (Autoscale deployments don't keep files anyway).
+- **Logs hold no content**: no transcripts, task text or memory in server logs, only sizes, kinds and timings. My data lives in one place, where I can view and delete it.
+- **The server's URL is public, but every request needs the token.** If the token ever leaks, change it in Replit Secrets and the Shortcut.
+- **AI providers see only what a request needs.** Anthropic doesn't train on API data and deletes it within 30 days. ElevenLabs offers zero retention only to enterprise customers, so Scribe may keep audio and transcripts; the most sensitive voice input (Debrief, Talk it through) may use Whisper locally on my Mac instead. Check OpenAI's terms before M4 embeddings.
+- Where the most sensitive memory lives (Replit's database or my Mac) is decided before M4; see Open questions.
+
 ## Stack
 | Piece | Choice |
 |---|---|
@@ -41,7 +50,7 @@ I want to understand every part of it and be able to explain how and why it work
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 on Replit, 3.11 on the Mac: code must run on both. `.replit` uses the `python-3.12` module, never `python-base-*` (that one has no pip, so the deploy's automatic install fails); the deployment's run command and port live in `.replit` too |
 | Data | Postgres with pgvector (Replit's database; verify `CREATE EXTENSION vector;` works) |
 | Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
-| To-dos | Google Tasks API, writes behind approval |
+| To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later |
 | Texts | The Messages database on my Mac, read-only, via a small local worker |
 | Coding tool | Claude Code run headless by the Mac worker, in a fresh git worktree of an allowed repo |
 | Weather | Open-Meteo (free, no key), using my saved city |
@@ -122,3 +131,4 @@ No em dashes. Match the tone of my own sent messages.
 ## Open questions
 - A name for the assistant.
 - Which Gmail account (a personal one is likely simpler than Duke's).
+- Where the most sensitive memory lives (people notes, Talk it through, values): Replit's database, or my Mac (private from Replit, but only works while the Mac is awake). Decide before M4.

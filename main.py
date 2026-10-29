@@ -76,8 +76,10 @@ def voice(file: UploadFile, timezone: str = Form(DEFAULT_TIMEZONE)):
     try:
         task = finish_task(parse_task(transcript, local_tz), local_tz)
     except TaskParseError as e:
-        log.error("task parsing failed for %r: %s", transcript, e)
+        log.error("task parsing failed: %s", e)
         raise HTTPException(502, str(e))
 
-    log.info("transcript=%r task=%s", transcript, task)
+    # Logs never hold what I said: they sit on Replit's servers, outside the one place
+    # (the database) where I can see and delete my data. Sizes and kinds only.
+    log.info("voice: %d bytes of audio, %d characters, kind=%s", len(audio), len(transcript), task["kind"])
     return {"transcript": transcript, "task": task}

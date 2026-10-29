@@ -3,6 +3,17 @@
 credentials.json
 token.json
 
+# My data: the repo is public, so data and recordings never go in it
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.m4a
+*.wav
+*.mp3
+*.aiff
+
 # Python
 __pycache__/
 *.pyc

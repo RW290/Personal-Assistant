@@ -61,7 +61,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 ## Stack
 | Piece | Choice |
 |---|---|
-| Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone, then show the result as a notification (✓ or ✗ with the error code, and a short message written by code) |
+| Input | iPhone Action button Shortcut, the only one, for quick requests: Record Audio, send it to the server with the phone's time zone, then show the result as a notification (✓ or ✗ with the error code, and a short message written by code) |
 | Review app | A React PWA on my iPhone's home screen (built with Vite, served by FastAPI): approvals, replies, journal, people notes |
 | Speech to text | ElevenLabs Scribe v2 (`model_id` `scribe_v2`, English). Starter plan |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching. Journal conversations use a custom voice I provide (a voice clone) |

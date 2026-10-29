@@ -133,7 +133,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 
 | Piece | Choice |
 |---|---|
-| Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone, then show the result as a notification (✓ or ✗ with the error code, and a short message written by code) |
+| Input | iPhone Action button Shortcut, the only one, for quick requests: Record Audio, send it to the server with the phone's time zone, then show the result as a notification (✓ or ✗ with the error code, and a short message written by code) |
 | Review app | A React PWA on my iPhone's home screen (built with Vite, served by FastAPI): approvals, replies, journal, people notes |
 | Speech to text | ElevenLabs Scribe v2 (`scribe_v2`, English) |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching. Journal conversations use a custom voice I provide (a voice clone) |
@@ -263,7 +263,7 @@ On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which h
 
 ### iPhone Shortcut
 
-A new shortcut named "Assistant" with six actions:
+One shortcut named "Assistant" (the only one; anything long happens in the web app) with six actions:
 
 1. **Record Audio**: Start Recording *Immediately*, Finish Recording *On Tap*.
 2. **Format Date**: Date *Current Date*, Date Format *Custom*, Format String `VV` (gives the time zone name, like `America/New_York`).

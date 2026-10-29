@@ -58,14 +58,14 @@ One central place to review and act, installed on my iPhone's home screen as a P
 
 - The approval queue (approve or reject with a tap), replies, tasks and the action log, journal entries (record, read, delete) and people notes (view, delete).
 - Journal entries are recorded right in the app. Long recordings upload with progress and are processed in the background.
-- Plain HTML, CSS and JavaScript served by the FastAPI server, with no frontend framework.
+- Built with React (Vite) and served as static files by the FastAPI server, so it's one deployment at one address.
 - It caches only its own files, never my data, so nothing personal is stored offline on the phone.
 - Sign-in starts with the token (pasted once; the app gets its own session cookie) and moves to a passkey with Face ID before journal entries and people notes show up.
 
 ## Memory
 
 - **Facts** (Milestone 1): short, stable things about me, like where I live, that I want the weather when I wake up, class times and names. A small table included in every call, managed with `remember` and `forget` tools. Every save tells me exactly what was saved.
-- **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those.
+- **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those. It searches long-term memories, journal chunks and people notes together; people are also found through their graph links (who is connected to whom), which search by meaning alone misses. Encrypted items are searched by their embeddings, and only the matches are decrypted and sent to the model.
 - **People memory, a graph** (Milestone 4): who everyone in my life is and how I relate to them, personal and professional. All in Postgres, with the notes encrypted:
   - *nodes*: one per person, company or group
   - *edges*: how they connect (friend, co-president with, works at, manager of), each dated so newer facts replace older ones
@@ -87,7 +87,7 @@ For talking at length about my life with no particular person or task in mind: m
 - It runs on Claude Opus 5.5 rather than Haiku, since reflection needs the stronger model. An entry costs about 1 to 2 cents.
 - It shows me a short summary in my words (no advice unless I ask, never labeling or diagnosing me), plus suggested memories and to-dos.
 - Nothing is kept without a tap. I can say something out loud and not keep it.
-- Entries are encrypted in the database, used when I ask about them, and never appear in anything written to someone else.
+- Entries are encrypted in the database and split into chunks with embeddings, so recall finds the relevant part. They're used when I ask about them, and never appear in anything written to someone else.
 - If something heavy comes up, it can gently suggest talking with a friend or a counselor too.
 
 ## Lists and records (Milestone 7)
@@ -123,7 +123,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Piece | Choice |
 |---|---|
 | Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone |
-| Review app | A PWA on my iPhone's home screen (plain HTML/JS served by FastAPI): approvals, replies, journal, people notes |
+| Review app | A React PWA on my iPhone's home screen (built with Vite, served by FastAPI): approvals, replies, journal, people notes |
 | Speech to text | ElevenLabs Scribe v2 (`scribe_v2`, English) |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching |
 | Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task uses Claude Haiku 5.5, which matched Opus 5.5 on the test requests, faster and at about 1/40 the price. Journal mode uses Claude Opus 5.5 |
@@ -138,6 +138,14 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Weather | Open-Meteo (free, no key), using my saved city |
 | Live conversation (M9) | ElevenLabs Agents with this server as a custom LLM (OpenAI-style streaming endpoint) |
 
+## Keeping costs down
+
+- **Prompt caching:** the system prompt, tool list and facts are the same at the start of every call, so the Anthropic API caches them and re-reads them at a tenth of the price or less.
+- **Fixed commands skip the model:** "what's new?" reads the replies queue directly.
+- **Model routing (Milestone 7):** Haiku for simple steps, Opus for journal entries and drafts in my voice.
+- **Text to speech is cached:** the same text is never synthesized twice.
+- **No semantic caching** (reusing an old answer when a new request sounds similar). Most answers depend on the calendar, the date or my tasks, so an old answer is often wrong, and "call mom" and "call dad" look almost the same to it. A quick request costs $0.00014 on Haiku anyway: 1,000 requests is 14 cents.
+
 ## Dates and time zones
 
 - The Shortcut sends the phone's time zone (like `America/New_York`) with every request, so "tomorrow at 5" means 5 wherever I am. A zone I say wins: a zone ("3pm Pacific", "5 East Coast time"), a place for the time ("noon London time"), or where I'll be then ("I'll be back in Durham by then").
@@ -148,7 +156,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 | # | Done by | What works | How we know |
 |---|---|---|---|
 | 0 | Oct 27 | Action button → transcript → a task as JSON (kind, title, date, time, time zone, exact datetime, notes) | Five spoken requests come out right |
-| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory; a first web app page for the approval queue and action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
+| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
 | 4 | Sun Nov 8 | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |

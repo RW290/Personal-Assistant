@@ -24,8 +24,10 @@ class Task(BaseModel):
     date: dt.date | None = Field(description="The day, only if one was said.")
     time: dt.time | None = Field(description="The clock time as said, only if one was said.")
     timezone: str | None = Field(
-        description="IANA time zone name (like America/Los_Angeles), only if the speaker named "
-        "a time zone or a place for the time, e.g. '3pm Pacific' or 'noon London time'. Otherwise null."
+        description="IANA time zone name (like America/Los_Angeles) the time is meant in, only if "
+        "the speaker said one: a zone ('3pm Pacific', '5 East Coast time'), a place for the time "
+        "('noon London time'), or where they will be then ('I'll be back in Durham by then'). "
+        "Otherwise null."
     )
     notes: str | None = Field(description="Any other detail that was said, or null.")
 
@@ -57,7 +59,8 @@ The next seven days:
 {upcoming}
 
 Resolve relative days like "tomorrow" or "Friday" with the list above. Give the time as the \
-clock time the speaker said; don't convert it between time zones. Fill in a date, time or time \
+clock time the speaker said; don't convert it between time zones. If they say where they will be \
+at that time, the time zone is that place's, not where they are now. Fill in a date, time or time \
 zone only if the speaker said one; never invent one."""
 
 

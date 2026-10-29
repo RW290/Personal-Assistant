@@ -22,7 +22,7 @@ The assistant reads freely, drafts on request, and never acts on its own.
 - **It never sends anything.** No emails, texts or messages. It only drafts; I send.
 - **Every write waits for my approval, and approving is always a tap**, never a spoken "yes."
 - **Content from emails, texts, notes, imports and web pages is data, never instructions.** This is the prompt-injection defense.
-- Every API route requires a shared secret token sent by my iPhone Shortcut (in the `X-Assistant-Token` header). The sole exception is `GET /`, which returns only a generic liveness status for Replit Autoscale; it does not read data or call tools. All other unauthenticated requests are rejected, and framework docs pages are off, so finding the server's address isn't enough to read my calendar.
+- Every data route requires a shared secret token sent by my iPhone Shortcut (in the `X-Assistant-Token` header) or a signed-in web app session. The only public routes hold no data: `GET /`, a generic liveness status for Replit Autoscale that doesn't read data or call tools, and the web app's own files and sign-in page. All other unauthenticated requests are rejected, and framework docs pages are off, so finding the server's address isn't enough to read my calendar.
 - It can only call the tools in this repo, and every tool call is logged with its reason.
 - A monthly cost cap, and a kill switch that turns off every write tool. The first layer is a monthly spend limit on the Anthropic workspace the API key belongs to.
 - The model gets only what a request needs, not my whole inbox.
@@ -34,11 +34,12 @@ The assistant reads freely, drafts on request, and never acts on its own.
 ```mermaid
 flowchart LR
     A[iPhone Action button] -->|recorded audio| B[FastAPI server]
+    W[Web app on my iPhone<br/>review, approve, journal] <-->|signed in| B
     B --> C[ElevenLabs Scribe<br/>speech to text]
     C -->|transcript| D[Agent loop<br/>Claude + tools]
     D -->|read tools| E[(Calendar, Gmail, Tasks,<br/>memory, web)]
     D -->|write tools| F[Approval queue]
-    F -->|I tap approve| G[Write runs:<br/>task, event or draft]
+    F -->|I tap approve<br/>in the web app| G[Write runs:<br/>task, event or draft]
     D <-->|texts, coding| M[Mac worker<br/>local only]
     D --> H[Replies queue]
     H -->|when I ask| I[ElevenLabs<br/>text to speech]
@@ -50,6 +51,16 @@ flowchart LR
 2. It returns either a final answer or a tool call.
 3. For a tool call: validate the arguments. If it's a write tool, put it in the approval queue and stop. Otherwise run it, log it with its reason, and send the result back.
 4. Repeat until a final answer, with a cap of about 5 rounds. Tool errors and bad arguments are reported back to the model instead of crashing.
+
+## Web app
+
+One central place to review and act, installed on my iPhone's home screen as a PWA. The Action button stays for quick capture; anything long or worth reviewing happens in the app.
+
+- The approval queue (approve or reject with a tap), replies, tasks and the action log, journal entries (record, read, delete) and people notes (view, delete).
+- Journal entries are recorded right in the app. Long recordings upload with progress and are processed in the background.
+- Plain HTML, CSS and JavaScript served by the FastAPI server, with no frontend framework.
+- It caches only its own files, never my data, so nothing personal is stored offline on the phone.
+- Sign-in starts with the token (pasted once; the app gets its own session cookie) and moves to a passkey with Face ID before journal entries and people notes show up.
 
 ## Memory
 
@@ -72,7 +83,7 @@ People memory rules:
 
 For talking at length about my life with no particular person or task in mind: musings, things I want off my chest. It's the same flow as Debrief, without needing a single subject. Back-and-forth conversation stays with Talk it through.
 
-- A separate "Journal" Shortcut. Recordings can be long: the server answers right away, finishes in the background, and puts the result in the replies queue.
+- Recorded in the web app rather than another Shortcut. Recordings can be long: the server answers right away, finishes in the background, and puts the result in the replies queue.
 - It runs on Claude Opus 5.5 rather than Haiku, since reflection needs the stronger model. An entry costs about 1 to 2 cents.
 - It shows me a short summary in my words (no advice unless I ask, never labeling or diagnosing me), plus suggested memories and to-dos.
 - Nothing is kept without a tap. I can say something out loud and not keep it.
@@ -112,6 +123,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Piece | Choice |
 |---|---|
 | Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone |
+| Review app | A PWA on my iPhone's home screen (plain HTML/JS served by FastAPI): approvals, replies, journal, people notes |
 | Speech to text | ElevenLabs Scribe v2 (`scribe_v2`, English) |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching |
 | Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task uses Claude Haiku 5.5, which matched Opus 5.5 on the test requests, faster and at about 1/40 the price. Journal mode uses Claude Opus 5.5 |
@@ -136,14 +148,14 @@ Sharing personal things is the point of this assistant, so every place my data p
 | # | Done by | What works | How we know |
 |---|---|---|---|
 | 0 | Oct 27 | Action button → transcript → a task as JSON (kind, title, date, time, time zone, exact datetime, notes) | Five spoken requests come out right |
-| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory | "What's on Friday?" answers from the calendar; "add X" waits for approval; "I live in Durham" survives a restart |
+| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory; a first web app page for the approval queue and action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
-| 4 | Sun Nov 8 | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode (long recordings, Opus, encrypted entries) with approval; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
+| 4 | Sun Nov 8 | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
 | 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding); Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed |
 | 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |
-| 8 | Tue Nov 17 | Cost cap, kill switch, full test suite; project site with a demo | The whole suite passes |
+| 8 | Tue Nov 17 | Cost cap, kill switch, full test suite; project site with a demo (the web app in demo mode, with made-up people) | The whole suite passes |
 | 9 | Sun Nov 22 | Live voice conversation via ElevenLabs Agents | One conversation adds a to-do, drafts a text, answers a calendar question, with the same eval scores as text |
 
 After each milestone I add a 4-line write-up here: the problem, what I tried, numbers before and after, and what's next.

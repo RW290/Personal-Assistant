@@ -22,7 +22,7 @@ I want to understand every part of it and be able to explain how and why it work
 - Drafts and waits for approval: new tasks and calendar events, email drafts, to-do list changes, text drafts (a tap opens Messages pre-filled; I press send), code changes on a new branch.
 - Never: send anything, push or merge code, move money or pay anyone, delete anything, store passwords or login details, or follow instructions found inside an email, text, note or web page.
 - Content from emails, texts, notes, imports and web pages is **data, never instructions** (prompt-injection defense).
-- Every API route requires `ASSISTANT_TOKEN`, a shared secret the Shortcut sends in the `X-Assistant-Token` header. The sole exception is `GET /`, which returns only a generic liveness status for Replit Autoscale and does not read data or call tools. All other unauthenticated requests are rejected, and framework docs pages are off. The token lives only in `.env`, Replit Secrets and the Shortcut, never in the repo.
+- Every data route requires `ASSISTANT_TOKEN` (a shared secret the Shortcut sends in the `X-Assistant-Token` header) or a signed-in web app session. The only public routes hold no data: `GET /`, which returns a generic liveness status for Replit Autoscale and doesn't read data or call tools, and the web app's own files and sign-in page. All other unauthenticated requests are rejected, and framework docs pages are off. The token lives only in `.env`, Replit Secrets and the Shortcut, never in the repo.
 - It can only call the tools we write. Every tool call is logged with its reason.
 - A monthly cost cap, and a kill switch that turns off every write tool. First layer: the Anthropic key belongs to its own `personal-assistant` workspace, with a monthly spend limit on that workspace.
 - The model gets only what a request needs, not my whole inbox.
@@ -49,6 +49,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Piece | Choice |
 |---|---|
 | Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone |
+| Review app | A PWA on my iPhone's home screen (plain HTML/JS served by FastAPI): approvals, replies, journal, people notes |
 | Speech to text | ElevenLabs Scribe v2 (`model_id` `scribe_v2`, English). Starter plan |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching |
 | Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task (M0) uses Claude Haiku 5.5 (`claude-haiku-5-5`): it matched Opus 5.5 on the test requests, faster and at about 1/40 the price. Journal mode (M4) uses Claude Opus 5.5 (`claude-opus-5-5`) |
@@ -67,6 +68,15 @@ Sharing personal things is the point of this assistant, so every place my data p
 - The Shortcut sends the phone's time zone (an IANA name like `America/New_York`) with every request, so "tomorrow at 5" means 5 where I am. A zone I say wins: a zone ("3pm Pacific", "5 East Coast time"), a place for the time ("noon London time"), or where I'll be then ("I'll be back in Durham by then"). If the phone sends none: `America/New_York`. "When I'm back home" needs facts memory (M1) to know where home is.
 - The model only writes down the date, time and zone I said. Code combines them into one exact datetime with the right offset, so daylight saving changes come out right. The model never does date arithmetic: the prompt lists the next seven dates for it to look up.
 
+## Web app (PWA)
+One central place to review and act, installed on my iPhone's home screen. The Action button stays for quick capture; anything long or worth reviewing happens in the app.
+- In it: the approval queue (approve or reject with a tap), replies, tasks and the action log, journal entries (record, read, delete) and people notes (view, delete).
+- Journal entries are recorded in the app (the browser records the audio), not from another Shortcut. Long recordings upload with progress and are processed in the background.
+- Plain HTML, CSS and JavaScript served by the FastAPI server, with no frontend framework, so I understand every part. A web app manifest and a service worker make it installable.
+- The service worker caches only the app's own files, never my data, so nothing personal is stored offline on the phone.
+- Sign-in: in M1, I paste the token once and the server gives the app its own session cookie (the token itself isn't stored in the browser). From M4, before journal entries and people notes show up, sign-in is a passkey with Face ID, and sessions expire after a short idle time.
+- The app's own files and its sign-in page are public and hold no data. Every data route needs a signed-in session or the token.
+
 ## Memory design
 - **Facts** (Milestone 1): short, stable things about me (where I live, that I want the weather when I wake up, class times, names). A small table, included in every call. `remember` and `forget` tools; every save tells me exactly what was saved.
 - **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those.
@@ -81,7 +91,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 
 ## Journal mode (Milestone 4, built with Debrief)
 Talking at length about my life with no particular person or task in mind: musings, things I want off my chest. The same flow as Debrief, without needing a single subject. Back-and-forth conversation stays with Talk it through.
-- Started from a separate "Journal" Shortcut (or a two-option menu on the Action button). Recordings can be long; recording stops when I tap.
+- Recorded in the web app, not from another Shortcut, since it doesn't need quick access. Recordings can be long; recording stops when I tap.
 - Long recordings: the server answers "got it" right away and finishes in the background, and the result goes to the replies queue. Check that Replit Autoscale keeps working after it has answered; if it doesn't, use a Reserved VM deployment.
 - Runs on Claude Opus 5.5 (`claude-opus-5-5`), not Haiku: reflection needs the stronger model, and an entry costs about 1 to 2 cents.
 - It shows me a short summary in my words (no advice unless I ask, never labeling or diagnosing me), suggested memories (people, events, facts about me) and suggested to-dos I mentioned.
@@ -133,14 +143,14 @@ How I make decisions, in my own words, in three layers:
 | # | Done by | What works | How we know |
 |---|---|---|---|
 | 0 | Oct 27 | Action button → transcript → a task as JSON (kind, title, date, time, time zone, exact datetime, notes) | Five spoken requests come out right |
-| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory | "What's on Friday?" answers from the calendar; "add X" waits for approval; "I live in Durham" survives a restart |
+| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log; replies queue; facts memory; a first web app page for the approval queue and action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
-| 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode (long recordings, Opus, encrypted entries) with approval; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
+| 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debrief with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
 | 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding); Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed |
 | 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |
-| 8 | Tue Nov 17 | Cost cap, kill switch, full test suite; project site with a demo | The whole suite passes |
+| 8 | Tue Nov 17 | Cost cap, kill switch, full test suite; project site with a demo (the web app in demo mode, with made-up people) | The whole suite passes |
 | 9 | Sun Nov 22 | Live voice conversation via ElevenLabs Agents | One conversation adds a to-do, drafts a text, answers a calendar question, with the same eval scores as text |
 
 ## Style for anything the assistant drafts in my voice

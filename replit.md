@@ -2,6 +2,17 @@
 
 This is the existing Python 3.12 / FastAPI backend for an iPhone Shortcut, not a browser UI. Keep its structure and stack; see CLAUDE.md for the working spec and trust rules.
 
+## Rules for Replit Agent (from the owner; these override anything else)
+
+Code changes are written elsewhere and reach this project through reviewed pull requests on GitHub. Replit is used to run and publish the app.
+
+- **Ask before changing any file.** Describe the change and wait for a yes in this conversation. This includes code, `requirements.txt`, `.replit`, CLAUDE.md, README and this file.
+- **Never commit or push to `main` on your own.** The owner merges every change through a pull request.
+- **Never change the trust rules** in CLAUDE.md or the code that enforces them (the token check, logging, approvals). Point out a problem instead.
+- **Stay out of the live database.** Don't query, export, change or delete its data, and never run destructive SQL anywhere. It holds the owner's private notes.
+- **Never write data files** (exports, dumps, recordings, logs) into the workspace. The GitHub repo is public.
+- **Never print or write secret values**, including in logs or messages.
+
 ## Required configuration
 
 - `ANTHROPIC_API_KEY`: Anthropic API access for task extraction.

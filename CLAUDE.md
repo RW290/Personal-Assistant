@@ -14,6 +14,7 @@ I want to understand every part of it and be able to explain how and why it work
 - Whenever we change the plan (a decision, a model or tool choice, a milestone), write it into this file in the same change.
 - Keep `README.md` in sync with this file. Whenever CLAUDE.md changes, update the README in the same change so it never describes an old plan.
 - Commit freely, but always on a new branch with a pull request into `main`, so I can review it on GitHub. Never push to `main` directly; I merge. The repo is public: check every commit for secrets before pushing.
+- Replit Agent works under the rules in `replit.md`: it asks before changing any file, never commits to `main` on its own, never changes the trust rules, and stays out of the live database. Code reaches Replit only through reviewed pull requests; Replit runs and publishes it.
 
 ## Hard trust rules (do not break these, in code or in suggestions)
 - **It never sends anything**: no emails, texts or messages. It only drafts. I send.

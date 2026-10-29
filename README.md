@@ -180,7 +180,7 @@ uvicorn main:app --reload        # http://localhost:8000
 python scripts/try_m0.py         # in a second terminal: eleven spoken test requests
 ```
 
-On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which has pip, so Replit installs `requirements.txt` on its own), a workflow that runs the server in the editor, and an Autoscale deployment that runs `python -m uvicorn main:app --host 0.0.0.0 --port 8000`. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
+On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which has pip, so Replit installs `requirements.txt` on its own), a workflow that runs the server in the editor, and an Autoscale deployment that runs `python -m uvicorn main:app --host 0.0.0.0 --port 8000`. Replit's AI agent works under the rules in [replit.md](replit.md): it asks before changing anything, never commits to `main` on its own, and stays out of the live database. Every request must carry the `X-Assistant-Token` header; anything without it gets a 401. The Shortcut also sends a `timezone` form field (an IANA name like `America/New_York`) so "tomorrow at 5" means 5 wherever I am.
 
 | File | What it does |
 |---|---|

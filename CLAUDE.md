@@ -12,8 +12,8 @@ I want to understand every part of it and be able to explain how and why it work
   - Replit set up: the `python-3.12` module, publish settings in `.replit`, rules for Replit Agent in `replit.md`.
   - GitHub repo description and topics, describing the finished assistant and kept in sync with the plan.
 - **In review**: PR #8 (plan: Journal mode with talking back, the React web app, how recall works, costs, LangGraph for M6, the action log, evals, multiple relationships, one Shortcut for quick requests, keeping the repo description and topics in sync) and PR #9 (web app sign-in and approval queue with made-up items, check mark or X results for the Shortcut, keys read in `config.py`). Merge #8, then #9.
-- **Next: Milestone 1 (due Sat Oct 31).** I write the agent loop, approval queue and action log. Then the task, calendar and Google Tasks tools, Google sign-in, Postgres on Replit, facts memory, and plugging my approval queue into the web app.
-- **Waiting on me**: the 4-line Milestone 0 write-up; updating the Shortcut to show the notification.
+- **Next: Milestone 1 (due Sat Oct 31).** I write the agent loop, approval queue and action log. Then the tools, in order: reading my calendar, adding calendar events, adding Google Tasks, facts memory. Plus Google sign-in with my personal account, Postgres on Replit, facts memory, and plugging my approval queue into the web app.
+- **Waiting on me**: the 4-line Milestone 0 write-up; updating the Shortcut to show the notification; a Google Cloud project for my personal Google account (Calendar and Tasks APIs turned on, plus a sign-in client).
 
 ## How to work with me
 - Explain changes in plain, simple terms. Say what a piece of code does and why, not just what you changed.
@@ -71,8 +71,8 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Backend | Python + FastAPI. Django was considered and passed on: this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 on Replit, 3.11 on the Mac: code must run on both. `.replit` uses the `python-3.12` module, never `python-base-*` (that one has no pip, so the deploy's automatic install fails); the deployment's run command and port live in `.replit` too |
 | Data | Postgres with pgvector (Replit's database; verify `CREATE EXTENSION vector;` works). All my data lives here; the most sensitive memory is encrypted (see Privacy) |
-| Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
-| To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later |
+| Calendar and email | My personal Google account. Google Calendar: reads events and adds new ones behind approval, using the narrowest Google permission that allows that. It only adds for now: it never changes or deletes an existing event. Gmail: read-only, plus drafts |
+| To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later. Tasks with a due date also show up in Google Calendar on that day |
 | Texts | The Messages database on my Mac, read-only, via a small local worker |
 | Coding tool | Claude Code run headless by the Mac worker, in a fresh git worktree of an allowed repo |
 | Weather | Open-Meteo (free, no key), using my saved city |
@@ -211,7 +211,7 @@ An eval is a fixed set of test cases plus a grader, run before any change to pro
 | # | Done by | What works | How we know |
 |---|---|---|---|
 | 0 | Oct 27 | Action button → transcript → a task as JSON (kind, title, date, time, time zone, exact datetime, notes) | Five spoken requests come out right |
-| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
+| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "dinner with Alex Friday at 7" lands on my calendar after a tap; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
 | 4 | Sun Nov 8 (start Fri Nov 6 if evals finish early) | People memory graph from Debriefs recorded in the web app, with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented, including two people with two relationships at once; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
@@ -226,5 +226,5 @@ No em dashes. Match the tone of my own sent messages.
 
 ## Open questions
 - A name for the assistant.
-- Which Gmail account (a personal one is likely simpler than Duke's).
+- Gmail (M2): most likely the same personal Google account as Calendar and Tasks (decided Oct 29).
 - The responsible-AI rules for Journal conversations: what it should and shouldn't do (advice, decisions, heavy topics, how honest to be, what it remembers). Decide before building them.

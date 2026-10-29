@@ -142,8 +142,8 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Backend | Python + FastAPI. I considered Django, but this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 there, 3.11 on the Mac; settings in `.replit` |
 | Data | Postgres with pgvector on Replit; the most sensitive memory is encrypted |
-| Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
-| To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later |
+| Calendar and email | My personal Google account. Google Calendar: reads events and adds new ones behind approval, using the narrowest Google permission that allows that. It only adds for now: it never changes or deletes an existing event. Gmail: read-only, plus drafts |
+| To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later. Tasks with a due date also show up in Google Calendar on that day |
 | Texts | The Messages database on my Mac, read-only, via a small local worker |
 | Coding tool | Claude Code run headless by the Mac worker, in a fresh git worktree of an allowed repo |
 | Weather | Open-Meteo (free, no key), using my saved city |
@@ -179,7 +179,7 @@ From Milestone 3, every change to prompts, tools or models is checked against a 
 | # | Done by | What works | How we know |
 |---|---|---|---|
 | 0 | Oct 27 | Action button → transcript → a task as JSON (kind, title, date, time, time zone, exact datetime, notes) | Five spoken requests come out right |
-| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
+| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "dinner with Alex Friday at 7" lands on my calendar after a tap; "I live in Durham" survives a restart |
 | 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
 | 4 | Sun Nov 8 | People memory graph from Debriefs recorded in the web app, with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented, including two people with two relationships at once; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
@@ -279,7 +279,7 @@ Then Settings → Action Button → Shortcut → "Assistant". The shortcut holds
 ## Open questions
 
 - A name for the assistant.
-- Which Gmail account to use (a personal one is likely simpler than Duke's).
+- Gmail (Milestone 2): most likely the same personal Google account as Calendar and Tasks.
 - The responsible-AI rules for Journal conversations: what it should and shouldn't do (advice, decisions, heavy topics, how honest to be, what it remembers). Decide before building them.
 
 ## License

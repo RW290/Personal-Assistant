@@ -5,7 +5,6 @@ It talks to the /api routes below. main.py's middleware decides who gets in.
 """
 import hashlib
 import hmac
-import os
 import time
 from pathlib import Path
 
@@ -14,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from approvals import AlreadyDecided, Approval, DemoApprovals, NotFound, Status
+from config import ASSISTANT_TOKEN
 
 SESSION_COOKIE = "assistant_session"
 SESSION_SECONDS = 14 * 24 * 3600  # two weeks; Face ID passkeys in Milestone 4 make this shorter
@@ -25,7 +25,7 @@ approvals = DemoApprovals()  # replaced by my approval queue in Milestone 1
 
 def _sign(text: str) -> str:
     # The signing key comes from the token, so changing ASSISTANT_TOKEN signs every session out.
-    key = hmac.new(os.environ["ASSISTANT_TOKEN"].encode(), b"web-session", hashlib.sha256).digest()
+    key = hmac.new(ASSISTANT_TOKEN.encode(), b"web-session", hashlib.sha256).digest()
     return hmac.new(key, text.encode(), hashlib.sha256).hexdigest()
 
 
@@ -50,7 +50,7 @@ class SignIn(BaseModel):
 @router.post("/login")
 def login(body: SignIn, response: Response):
     """Trade the token for a session cookie. The browser never stores the token itself."""
-    if not hmac.compare_digest(body.token.strip().encode(), os.environ["ASSISTANT_TOKEN"].encode()):
+    if not hmac.compare_digest(body.token.strip().encode(), ASSISTANT_TOKEN.encode()):
         raise HTTPException(401, "That token isn't right.")
     # httponly: page scripts can't read it. secure: only sent over HTTPS.
     # samesite=strict: the browser won't send it with requests that other websites start.

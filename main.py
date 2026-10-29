@@ -5,26 +5,15 @@ Run locally:  uvicorn main:app --reload
 """
 import hmac
 import logging
-import os
 
-from dotenv import load_dotenv
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-# Load .env before anything reads the environment. On Replit there is no .env file;
-# the same names come from Replit Secrets, and this line does nothing.
-load_dotenv()
-
-for name in ("ASSISTANT_TOKEN", "ANTHROPIC_API_KEY", "ELEVENLABS_API_KEY"):
-    if not os.environ.get(name):
-        # Refuse to start rather than run half-configured (and, without a token, wide open).
-        raise RuntimeError(f"{name} is not set (.env locally, Replit Secrets when deployed)")
-
-from fastapi import FastAPI, Form, HTTPException, Request, UploadFile  # noqa: E402
-from fastapi.exceptions import RequestValidationError  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
-from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
-
-from speech import TranscriptionError, transcribe  # noqa: E402
-from task_parser import (  # noqa: E402
+from config import ASSISTANT_TOKEN
+from speech import TranscriptionError, transcribe
+from task_parser import (
     DEFAULT_TIMEZONE,
     TaskParseError,
     describe_task,
@@ -32,10 +21,9 @@ from task_parser import (  # noqa: E402
     get_timezone,
     parse_task,
 )
-from webapp import SESSION_COOKIE, mount_app, valid_session  # noqa: E402
-from webapp import router as web_router  # noqa: E402
+from webapp import SESSION_COOKIE, mount_app, valid_session
+from webapp import router as web_router
 
-ASSISTANT_TOKEN = os.environ["ASSISTANT_TOKEN"]
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # a minute of iPhone audio is about 1 MB
 
 logging.basicConfig(level=logging.INFO)

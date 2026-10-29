@@ -6,11 +6,13 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import anthropic
 from pydantic import BaseModel, Field
 
+from config import ANTHROPIC_API_KEY
+
 MODEL = "claude-haiku-5-5"
 # Used when the phone doesn't say where I am. Moves into facts memory in Milestone 1.
 DEFAULT_TIMEZONE = "America/New_York"
 
-client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 class Task(BaseModel):

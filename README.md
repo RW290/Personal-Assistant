@@ -235,6 +235,7 @@ On Replit, [.replit](.replit) holds the setup: the `python-3.12` module (which h
 | [webapp.py](webapp.py) | The web app's server side: sign-in, the approval routes, and serving the built app at `/app` |
 | [approvals.py](approvals.py) | The approval item's shape, and made-up items until my approval queue exists |
 | [web/](web/) | The React web app (Vite): sign-in and the approval queue |
+| [config.py](config.py) | Reads the keys once (from `.env` locally, Replit Secrets when deployed) and refuses to start if one is missing |
 | [speech.py](speech.py) | Sends audio to ElevenLabs Scribe and returns the words |
 | [task_parser.py](task_parser.py) | Asks Claude Haiku to fill in a fixed task shape (kind, title, date, time, time zone, notes), then code works out the exact moment with the right offset |
 | [scripts/try_m0.py](scripts/try_m0.py) | Speaks eleven requests with the Mac's voice, some as if the phone were in California, and checks each answer |

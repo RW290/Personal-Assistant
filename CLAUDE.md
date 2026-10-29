@@ -38,7 +38,7 @@ I want to understand every part of it and be able to explain how and why it work
 | Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task (M0) uses Claude Haiku 5.5 (`claude-haiku-5-5`): it matched Opus 5.5 on the test requests, faster and at about 1/40 the price |
 | Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Never switch models without re-embedding |
 | Backend | Python + FastAPI. Django was considered and passed on: this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
-| Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys) |
+| Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 on Replit, 3.11 on the Mac: code must run on both. `.replit` uses the `python-3.12` module, never `python-base-*` (that one has no pip, so the deploy's automatic install fails); the deployment's run command and port live in `.replit` too |
 | Data | Postgres with pgvector (Replit's database; verify `CREATE EXTENSION vector;` works) |
 | Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
 | To-dos | Google Tasks API, writes behind approval |

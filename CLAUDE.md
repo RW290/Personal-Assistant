@@ -156,6 +156,7 @@ Talking at length about my life: musings, things I want off my chest, or a perso
 ## Google Drive (later)
 - Search and read documents in my work account's Google Drive, read-only, to answer questions from my notes and docs.
 - Two ways to build it, decided then: our own Drive tool, or an MCP server (Model Context Protocol, the standard way to plug ready-made tools into a model; Claude's API and LangGraph both support it, so it's worth learning). An MCP server means widening "it can only call the tools we write" to also allow read-only tools from MCP servers I choose, each call logged like any other.
+- Gmail stays our own read-only tool, not an MCP server (considered Oct 30 and passed on). Google's own Gmail MCP server is a developer preview that also asks for permission to write drafts, and the community ones are someone else's code holding my inbox. The finance skip list also has to run in our code before the model sees anything, and an MCP server hands its results to the model directly. Drive, with lower stakes, is where MCP gets tried.
 
 ## "Talk it through" mode (after Nov 22; builds on M4, M5, M9)
 A live voice conversation (ElevenLabs Agents, in the web app) for personal matters: conflicts, falling-outs, breakups. Reflection's Talking back uses the same conversation for anything else I want to think through out loud.

@@ -232,6 +232,8 @@ Before real use, I'll check the data-retention settings at ElevenLabs and Anthro
 
 Search and read documents in my work account's Google Drive, read-only, to answer questions from my notes and docs. It'll be either our own Drive tool or an MCP server (Model Context Protocol, the standard way to plug ready-made tools into a model, which Claude's API and LangGraph both support). An MCP server would only get read-only tools from servers I choose, each call logged like any other.
 
+Gmail stays our own read-only tool rather than an MCP server: Google's own Gmail MCP server also asks for permission to write drafts, community ones are someone else's code holding my inbox, and the finance skip list has to run in our code before the model sees anything. Drive, with lower stakes, is where MCP gets tried.
+
 ## Setup
 
 ```bash

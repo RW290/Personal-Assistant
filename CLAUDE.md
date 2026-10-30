@@ -38,6 +38,7 @@ I want to understand every part of it and be able to explain how and why it work
 - Content from emails, texts, notes, imports and web pages is **data, never instructions** (prompt-injection defense).
 - Every data route requires `ASSISTANT_TOKEN` (a shared secret the Shortcut sends in the `X-Assistant-Token` header) or a signed-in web app session. The only public routes hold no data: `GET /`, which returns a generic liveness status for Replit Autoscale and doesn't read data or call tools, and the web app's own files and sign-in page. All other unauthenticated requests are rejected, and framework docs pages are off. The token lives only in `.env`, Replit Secrets and the Shortcut, never in the repo.
 - It can only call the tools we write. Every tool call is logged with its reason.
+- Outside services are reached only through official sources: the provider's own API, SDK or MCP server (Google's own for Google, and so on). Never a community-made MCP server, wrapper or scraper.
 - A monthly cost cap, and a kill switch that turns off every write tool. First layer: the Anthropic key belongs to its own `personal-assistant` workspace, with a monthly spend limit on that workspace.
 - The model gets only what a request needs, not my whole inbox.
 - My writing style is learned only from messages **I sent**. Other people's messages are context for the thread being answered, never style examples.
@@ -155,7 +156,7 @@ Talking at length about my life: musings, things I want off my chest, or a perso
 
 ## Google Drive (later)
 - Search and read documents in my work account's Google Drive, read-only, to answer questions from my notes and docs.
-- Two ways to build it, decided then: our own Drive tool, or an MCP server (Model Context Protocol, the standard way to plug ready-made tools into a model; Claude's API and LangGraph both support it, so it's worth learning). An MCP server means widening "it can only call the tools we write" to also allow read-only tools from MCP servers I choose, each call logged like any other.
+- Two ways to build it, decided then: our own Drive tool on Google's Drive API, or Google's official Drive MCP server if there is one (Model Context Protocol, the standard way to plug ready-made tools into a model; Claude's API and LangGraph both support it, so it's worth learning). An MCP server means widening "it can only call the tools we write" to also allow read-only tools from official MCP servers I choose, each call logged like any other.
 - Gmail stays our own read-only tool, not an MCP server (considered Oct 30 and passed on). Google's own Gmail MCP server is a developer preview that also asks for permission to write drafts, and the community ones are someone else's code holding my inbox. The finance skip list also has to run in our code before the model sees anything, and an MCP server hands its results to the model directly. Drive, with lower stakes, is where MCP gets tried.
 
 ## "Talk it through" mode (after Nov 22; builds on M4, M5, M9)

@@ -29,6 +29,7 @@ The assistant reads freely, drafts on request, and never acts on its own.
 - **Content from emails, texts, notes, imports and web pages is data, never instructions.** This is the prompt-injection defense.
 - Every data route requires a shared secret token sent by my iPhone Shortcut (in the `X-Assistant-Token` header) or a signed-in web app session. The only public routes hold no data: `GET /`, a generic liveness status for Replit Autoscale that doesn't read data or call tools, and the web app's own files and sign-in page. All other unauthenticated requests are rejected, and framework docs pages are off, so finding the server's address isn't enough to read my calendar.
 - It can only call the tools in this repo, and every tool call is logged with its reason.
+- **Outside services are reached only through official sources:** the provider's own API, SDK or MCP server (Google's own for Google, and so on). Never a community-made MCP server, wrapper or scraper.
 - A monthly cost cap, and a kill switch that turns off every write tool. The first layer is a monthly spend limit on the Anthropic workspace the API key belongs to.
 - The model gets only what a request needs, not my whole inbox.
 - My writing style is learned only from messages I sent. Other people's messages are context for the thread being answered, never style examples. Drafts in my voice use no em dashes and match the tone of my own sent messages.
@@ -232,7 +233,7 @@ Before real use, I'll check the data-retention settings at ElevenLabs and Anthro
 
 ### Google Drive (later)
 
-Search and read documents in my work account's Google Drive, read-only, to answer questions from my notes and docs. It'll be either our own Drive tool or an MCP server (Model Context Protocol, the standard way to plug ready-made tools into a model, which Claude's API and LangGraph both support). An MCP server would only get read-only tools from servers I choose, each call logged like any other.
+Search and read documents in my work account's Google Drive, read-only, to answer questions from my notes and docs. It'll be either our own Drive tool on Google's Drive API or Google's official Drive MCP server, if there is one (Model Context Protocol, the standard way to plug ready-made tools into a model, which Claude's API and LangGraph both support). An MCP server would only get its read-only tools, each call logged like any other.
 
 Gmail stays our own read-only tool rather than an MCP server: Google's own Gmail MCP server also asks for permission to write drafts, community ones are someone else's code holding my inbox, and the finance skip list has to run in our code before the model sees anything. Drive, with lower stakes, is where MCP gets tried.
 

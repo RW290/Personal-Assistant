@@ -144,6 +144,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 there, 3.11 on the Mac; settings in `.replit` |
 | Data | Postgres with pgvector on Replit; the most sensitive memory is encrypted |
 | Google accounts | Three, all signed in through one Google Cloud project, each given only what it needs. Work (productivity, where my calendar and tasks live): Calendar (reads events and adds new ones behind approval, never changing or deleting one), Tasks, and later Drive; no email. Personal (everyday and finances): Gmail read-only. Shopping: Gmail read-only. No account can send or draft email: drafts wait in the web app |
+| Google sign-in | One Google Cloud project with a Desktop app client; each account signs in once. Published, so sign-ins don't expire after 7 days, once its [homepage](docs/index.md) and [privacy policy](docs/privacy.md) are live on GitHub Pages |
 | To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later. Tasks with a due date also show up in Google Calendar on that day |
 | Texts | The Messages database on my Mac, read-only, via a small local worker |
 | Coding tool | Claude Code run headless by the Mac worker, in a fresh git worktree of an allowed repo |

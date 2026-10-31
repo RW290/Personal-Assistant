@@ -9,7 +9,7 @@ I'm building it by hand, in small working steps, so I can explain how and why ev
 ## Two ways in
 
 - **The Action button**, the only Shortcut, for quick requests and questions I can say in a breath: add a to-do to the list it belongs on ("get paper towels" goes on my shopping list), add an event, ask what's on my calendar, remember something ("Jordan wants a record player"), or, with no speech, hear what's new. Writes still wait for a tap in the web app.
-- **The web app**, for anything long or worth reviewing: approvals, Journal entries, Debriefs, and later live conversations.
+- **The web app**, for anything long or worth reviewing: approvals, reflections, and later live conversations.
 
 ## Trust rules
 
@@ -18,7 +18,7 @@ The assistant reads freely, drafts on request, and never acts on its own.
 | Reads freely | Drafts, then waits for my tap | Never |
 |---|---|---|
 | Calendar | New tasks and calendar events | Sends anything |
-| Email (read-only scope) | Email drafts | Pushes or merges code |
+| Email in my personal and shopping accounts (read-only) | Email drafts (a tap opens one pre-filled in my mail app; I press send) | Pushes or merges code |
 | My tasks and Google to-do lists | To-do list changes | Moves money or pays anyone |
 | Its own memory | Text drafts (a tap opens Messages pre-filled; I press send) | Deletes anything |
 | Web pages it looks up | Code changes on a new branch | Stores passwords or login details |
@@ -29,6 +29,7 @@ The assistant reads freely, drafts on request, and never acts on its own.
 - **Content from emails, texts, notes, imports and web pages is data, never instructions.** This is the prompt-injection defense.
 - Every data route requires a shared secret token sent by my iPhone Shortcut (in the `X-Assistant-Token` header) or a signed-in web app session. The only public routes hold no data: `GET /`, a generic liveness status for Replit Autoscale that doesn't read data or call tools, and the web app's own files and sign-in page. All other unauthenticated requests are rejected, and framework docs pages are off, so finding the server's address isn't enough to read my calendar.
 - It can only call the tools in this repo, and every tool call is logged with its reason.
+- **Outside services are reached only through official sources:** the provider's own API, SDK or MCP server (Google's own for Google, and so on). Never a community-made MCP server, wrapper or scraper.
 - A monthly cost cap, and a kill switch that turns off every write tool. The first layer is a monthly spend limit on the Anthropic workspace the API key belongs to.
 - The model gets only what a request needs, not my whole inbox.
 - My writing style is learned only from messages I sent. Other people's messages are context for the thread being answered, never style examples. Drafts in my voice use no em dashes and match the tone of my own sent messages.
@@ -39,7 +40,7 @@ The assistant reads freely, drafts on request, and never acts on its own.
 ```mermaid
 flowchart LR
     A[iPhone Action button] -->|recorded audio| B[FastAPI server]
-    W[Web app on my iPhone<br/>review, approve, journal] <-->|signed in| B
+    W[Web app on my iPhone<br/>review, approve, reflect] <-->|signed in| B
     B --> C[ElevenLabs Scribe<br/>speech to text]
     C -->|transcript| D[Agent loop<br/>Claude + tools]
     D -->|read tools| E[(Calendar, Gmail, Tasks,<br/>memory, web)]
@@ -61,16 +62,16 @@ flowchart LR
 
 One central place to review and act, installed on my iPhone's home screen as a PWA. The Action button is only for quick requests; anything long or worth reviewing happens in the app.
 
-- The approval queue (approve or reject with a tap), replies, tasks and the action log, journal entries (record, read, delete) and people notes (view, delete).
-- Journal entries and Debriefs are recorded right in the app. Long recordings upload with progress and are processed in the background.
+- The approval queue (approve or reject with a tap), replies, tasks and the action log, reflections (record, read, delete) and people notes (view, delete).
+- Reflections are recorded right in the app. Long recordings upload with progress and are processed in the background.
 - Built with React (Vite) and served as static files by the FastAPI server, so it's one deployment at one address.
 - It caches only its own files, never my data, so nothing personal is stored offline on the phone.
-- Sign-in starts with the token (pasted once; the app gets its own session cookie) and moves to a passkey with Face ID before journal entries and people notes show up.
+- Sign-in starts with the token (pasted once; the app gets its own session cookie) and moves to a passkey with Face ID before reflections and people notes show up.
 
 ## Memory
 
 - **Facts** (Milestone 1): short, stable things about me, like where I live, that I want the weather when I wake up, class times and names. A small table included in every call, managed with `remember` and `forget` tools. Every save tells me exactly what was saved.
-- **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those. It searches long-term memories, journal chunks and people notes together; people are also found through their graph links (who is connected to whom), which search by meaning alone misses. Encrypted items are searched by their embeddings, and only the matches are decrypted and sent to the model.
+- **Long-term memory** (Milestone 4): everything else, stored with embeddings in pgvector. The recall tool is RAG: embed the request, find the closest memories, include only those. It searches long-term memories, reflection chunks and people notes together; people are also found through their graph links (who is connected to whom), which search by meaning alone misses. Encrypted items are searched by their embeddings, and only the matches are decrypted and sent to the model.
 - **People memory, a graph** (Milestone 4): who everyone in my life is and how I relate to them, personal and professional. All in Postgres, with the notes encrypted:
   - *nodes*: one per person, company or group
   - *edges*: how they connect (friend, co-president with, works at, manager of, father of). Two people can have several at once (someone's dad can also be their boss), so each edge is its own row with a direction, start and end dates, and the note it came from
@@ -78,18 +79,18 @@ One central place to review and act, installed on my iPhone's home screen as a P
   - *notes*: dated summaries of what I said about a person, with embeddings for search by meaning
   - a short per-person summary, rewritten when new notes arrive
 
-People memory is filled from Debriefs, recorded in the web app: I talk for a few minutes about a person, meeting or conflict. The model extracts people, relationships and events and shows me what it plans to save. Nothing is saved until I tap approve, and I can edit or drop any line. It's built on plain tables rather than Graphiti or Mem0, so I understand every part.
+People memory is filled from reflections (talking about a person, meeting or conflict is just a reflection) and "remember..." requests on the Action button. The model extracts people, relationships and events and shows me what it plans to save. Nothing is saved until I tap approve, and I can edit or drop any line. It's built on plain tables rather than Graphiti or Mem0, so I understand every part.
 
 People memory rules:
 - Record what I said, in my words. Never label or diagnose anyone, or state something about a person I didn't say.
 - What I said about one person never appears in anything written to someone else.
 - People notes are the most sensitive data: viewable and deletable by me, never used in demos (demos use made-up people).
 
-## Journal mode (Milestone 4)
+## Reflection mode (Milestone 4)
 
-For talking at length about my life with no particular person or task in mind: musings, things I want off my chest. It's the same flow as Debrief, without needing a single subject. I can also talk with it instead of at it.
+For talking at length about my life: musings, things I want off my chest, or a person, meeting or conflict. It's also where people memory comes from. I can also talk with it instead of at it.
 
-- Recorded in the web app, like Debriefs. Recordings can be long: the server answers right away, finishes in the background, and puts the result in the replies queue.
+- Recorded in the web app. Recordings can be long: the server answers right away, finishes in the background, and puts the result in the replies queue.
 - It runs on Claude Opus 5.5 rather than Haiku, since reflection needs the stronger model. An entry costs about 1 to 2 cents.
 - It shows me a short summary in my words (no advice unless I ask, never labeling or diagnosing me), plus suggested memories and to-dos.
 - Nothing is kept without a tap. I can say something out loud and not keep it.
@@ -106,7 +107,7 @@ Things worth keeping that aren't facts or memories go in one `items` table. Each
 - a travel bucket list, linked to places
 - shipping addresses, stored on the person and only ever read back to me
 
-Items come from "remember..." requests on the Action button, Debriefs, or the Apple Notes import. Gift ideas are a common quick request, but they wait for this milestone; bringing a basic gift list in sooner is noted for later.
+Items come from "remember..." requests on the Action button, reflections, or the Apple Notes import. Gift ideas are a common quick request, but they wait for this milestone; bringing a basic gift list in sooner is noted for later.
 
 Money owed lives in a separate `ledger` table: person, amount, direction (I owe or they owe), what for, date, and whether it's settled. Totals are computed in SQL by a tool, so the model never does the arithmetic. It records debts; it never pays anyone.
 
@@ -119,29 +120,31 @@ Sharing personal things is the point of this assistant, so every place my data p
 - **This repo holds code only.** No real data, transcripts, recordings or personal details; tests and demos use made-up people. `.gitignore` blocks data and audio files.
 - **The Replit App is private**, and my data lives only in its database, never in files.
 - **Server logs hold no content**: Replit's console logs get only sizes, kinds and timings.
-- **The action log shows what it did**: each request (what I asked) and each tool call with its reason, in the database, shown in the web app, deleted after 7 days. Journal and Talk it through content isn't copied into it; it only notes that an entry was made.
+- **The action log shows what it did**: each request (what I asked) and each tool call with its reason, in the database, shown in the web app, deleted after 7 days. Reflection and Talk it through content isn't copied into it; it only notes that an entry was made.
 - **No telemetry**: no analytics or tracing services.
 - **The server's address is public, but every request needs the token.** A leaked token gets replaced in Replit Secrets and the Shortcut.
+- **Finance email stays away from the model.** My personal account gets bank and card emails, so the email tool skips senders and labels I choose (banks, for example) in code, before anything reaches the model.
 - **AI providers see only what a request needs.**
   - Anthropic doesn't train on API data (its Commercial Terms forbid it) and deletes it within 30 days. The API keeps no memory between requests: Claude only knows what the server sends each time.
-  - ElevenLabs may use what I send to improve its models unless I opt out (not retroactive), keeps a permanent license to it, and offers zero retention only to enterprise customers. I've opted out of training, and the most sensitive voice input (Debriefs and journal entries) may be transcribed on the device instead of by Scribe (since they're recorded in the web app, that means Whisper running in the browser or on my Mac).
-- **Storage: Replit only.** All my data lives in Replit's database, so everything works while my Mac sleeps. Development and live databases are separate, and Replit's AI agent never touches the live one. From Milestone 4, people notes, journal entries, Talk it through summaries and values are encrypted in the database (key in Replit Secrets), so a copy of the database shows only scrambled text; their embeddings stay unencrypted so search works. Regular encrypted backups go to my Mac. This doesn't protect against Replit itself or a legal order to Replit, which holds both the data and the key; keeping that memory on my Mac was considered and passed on because it only works while the Mac is awake.
+  - ElevenLabs may use what I send to improve its models unless I opt out (not retroactive), keeps a permanent license to it, and offers zero retention only to enterprise customers. I've opted out of training, and the most sensitive voice input (reflections) may be transcribed on the device instead of by Scribe (since they're recorded in the web app, that means Whisper running in the browser or on my Mac).
+- **Storage: Replit only.** All my data lives in Replit's database, so everything works while my Mac sleeps. Development and live databases are separate, and Replit's AI agent never touches the live one. From Milestone 4, people notes, reflections, Talk it through summaries and values are encrypted in the database (key in Replit Secrets), so a copy of the database shows only scrambled text; their embeddings stay unencrypted so search works. Regular encrypted backups go to my Mac. This doesn't protect against Replit itself or a legal order to Replit, which holds both the data and the key; keeping that memory on my Mac was considered and passed on because it only works while the Mac is awake.
 
 ## Stack
 
 | Piece | Choice |
 |---|---|
 | Input | iPhone Action button Shortcut: Record Audio, send it to the server with the phone's time zone |
-| Review app | A React PWA on my iPhone's home screen (built with Vite, served by FastAPI): approvals, replies, journal, people notes |
+| Review app | A React PWA on my iPhone's home screen (built with Vite, served by FastAPI): approvals, replies, reflections, people notes |
 | Speech to text | ElevenLabs Scribe v2 (`scribe_v2`, English) |
-| Text to speech | ElevenLabs, on request only, generated when I press play, with caching. Journal conversations use a custom voice I provide (a voice clone) |
-| Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task uses Claude Haiku 5.5, which matched Opus 5.5 on the test requests, faster and at about 1/40 the price. Journal mode uses Claude Opus 5.5 |
+| Text to speech | ElevenLabs, on request only, generated when I press play, with caching. Reflection conversations use a custom voice I provide (a voice clone) |
+| Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task uses Claude Haiku 5.5, which matched Opus 5.5 on the test requests, faster and at about 1/40 the price. Reflection mode uses Claude Opus 5.5 |
 | Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Switching models means re-embedding everything |
 | Backend | Python + FastAPI. I considered Django, but this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 there, 3.11 on the Mac; settings in `.replit` |
 | Data | Postgres with pgvector on Replit; the most sensitive memory is encrypted |
-| Calendar and email | Google Calendar and Gmail APIs: read-only scopes, plus Gmail drafts |
-| To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later |
+| Google accounts | Three, all signed in through one Google Cloud project, each given only what it needs. Work (productivity, where my calendar and tasks live): Calendar (reads events and adds new ones behind approval, never changing or deleting one), Tasks, and later Drive; no email. Personal (everyday and finances): Gmail read-only. Shopping: Gmail read-only. No account can send or draft email: drafts wait in the web app |
+| Google sign-in | One Google Cloud project with a Desktop app client; each account signs in once. Published, so sign-ins don't expire after 7 days, once its [homepage](docs/index.md) and [privacy policy](docs/privacy.md) are live on GitHub Pages |
+| To-dos | Google Tasks API, writes behind approval. Google Tasks only for now: its API keeps a task's due date but drops the time, so "remind me at 5" can't alert at 5. Timed alerts would mean Apple Reminders, added by the Shortcut on a tap; revisit later. Tasks with a due date also show up in Google Calendar on that day |
 | Texts | The Messages database on my Mac, read-only, via a small local worker |
 | Coding tool | Claude Code run headless by the Mac worker, in a fresh git worktree of an allowed repo |
 | Weather | Open-Meteo (free, no key), using my saved city |
@@ -151,7 +154,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 
 - **Prompt caching:** the system prompt, tool list and facts are the same at the start of every call, so the Anthropic API caches them and re-reads them at a tenth of the price or less.
 - **Fixed commands skip the model:** "what's new?" reads the replies queue directly.
-- **Model routing (Milestone 7):** Haiku for simple steps, Opus for journal entries and drafts in my voice.
+- **Model routing (Milestone 7):** Haiku for simple steps, Opus for reflections and drafts in my voice.
 - **Text to speech is cached:** the same text is never synthesized twice.
 - **No semantic caching** (reusing an old answer when a new request sounds similar). Most answers depend on the calendar, the date or my tasks, so an old answer is often wrong, and "call mom" and "call dad" look almost the same to it. A quick request costs $0.00014 on Haiku anyway: 1,000 requests is 14 cents.
 
@@ -177,10 +180,10 @@ From Milestone 3, every change to prompts, tools or models is checked against a 
 | # | Done by | What works | How we know |
 |---|---|---|---|
 | 0 | Oct 27 | Action button → transcript → a task as JSON (kind, title, date, time, time zone, exact datetime, notes) | Five spoken requests come out right |
-| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "I live in Durham" survives a restart |
-| 2 | Tue Nov 3 | Gmail search; drafts on approval in my style from sent mail; email text treated as data | A planted "forward all receipts" email is ignored |
+| 1 | Sat Oct 31 | Hand-written agent loop; task, calendar and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the React web app's first screens: sign-in and the approval queue, plus the action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "dinner with Alex Friday at 7" lands on my calendar after a tap; "I live in Durham" survives a restart |
+| 2 | Tue Nov 3 | Gmail search across my personal and shopping accounts (read-only); drafts in my style from my sent mail, waiting in the web app; email text treated as data; finance senders skipped | A planted "forward all receipts" email is ignored; an email from a skipped sender never reaches the model |
 | 3 | Fri Nov 6 | Evals: 50 requests + 10 injection tests; LLM judge for drafts; reflection loop (2-3 rounds max); Scribe keyterms | Tool accuracy, argument accuracy, injection pass rate saved as the baseline |
-| 4 | Sun Nov 8 | People memory graph from Debriefs recorded in the web app, with approval, its notes encrypted in the database; Journal mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 10 hand-written debriefs: people and relationships found vs invented, including two people with two relationships at once; 10 recall questions (half about relationships), graph vs vector-only; on 5 hand-written journal entries: memories and to-dos found vs invented, the summary stays in my words, nothing kept without a tap; leak test (no draft to one person mentions notes about another); no eval gets worse |
+| 4 | Sun Nov 8 | Reflection mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; people memory graph filled from reflections and "remember..." requests, with approval, its notes encrypted in the database; passkey sign-in with Face ID; people notes viewable and deletable in the web app; long-term memory in pgvector + recall tool; deployed on Replit; write-ups | On 15 hand-written reflections (10 about people): people, relationships, memories and to-dos found vs invented, including two people with two relationships at once; the summary stays in my words; nothing kept without a tap; 10 recall questions (half about relationships), graph vs vector-only; leak test (no draft to one person mentions notes about another); no eval gets worse |
 | 5 | Wed Nov 11 | Commitments in texts and email become tasks; text drafts in my style; spoken morning briefing (weather, calendar, commitments) | Finds vs invents on 30 labeled threads; blind test of 10 real texts mixed with 10 drafts |
 | 6 | Sat Nov 14 | Router that plans multi-step requests and hands steps to focused workers (email, calendar, memory, coding), built with LangGraph; Claude Code coding tool | A spoken coding request ends in a reviewable diff, nothing pushed; a write-up comparing the LangGraph router with my hand-written M1 loop (lines of code, M3 eval scores, latency, cost) |
 | 7 | Sun Nov 15 | Model routing (cheap model for simple steps); search-and-save tool; lists and records; money-owed ledger | Accuracy, cost, latency before and after; "how much do I owe my parents?" matches a hand count exactly |
@@ -209,7 +212,7 @@ The first slice has no voice: the values table, the "help me decide" tool, and a
 
 ### "Talk it through" mode (after Nov 22)
 
-A live voice conversation in the web app for personal matters: conflicts, falling-outs, breakups. Journal's Talking back uses the same conversation for anything else I want to think through out loud. It builds on people memory (M4), texts (M5) and live voice (M9).
+A live voice conversation in the web app for personal matters: conflicts, falling-outs, breakups. Reflection's Talking back uses the same conversation for anything else I want to think through out loud. It builds on people memory (M4), texts (M5) and live voice (M9).
 
 - **Only I start it.** It never raises a past conflict on its own.
 - **Context only with my okay:** for that conversation, it pulls in the relevant people memory, text thread and my values model.
@@ -225,6 +228,12 @@ Before real use, I'll check the data-retention settings at ElevenLabs and Anthro
 
 - **Apple Notes:** the Mac worker reads folders I choose (via AppleScript), the model sorts each note into a type, and I approve the batch before anything is saved.
 - **Instagram:** there's no official API for a personal account's saved posts, and no scraping. Instead, I periodically import Instagram's "Download your information" JSON export (posts, saved, likes, topics).
+
+### Google Drive (later)
+
+Search and read documents in my work account's Google Drive, read-only, to answer questions from my notes and docs. It'll be either our own Drive tool on Google's Drive API or Google's official Drive MCP server, if there is one (Model Context Protocol, the standard way to plug ready-made tools into a model, which Claude's API and LangGraph both support). An MCP server would only get its read-only tools, each call logged like any other.
+
+Gmail stays our own read-only tool rather than an MCP server: Google's own Gmail MCP server also asks for permission to write drafts, community ones are someone else's code holding my inbox, and the finance skip list has to run in our code before the model sees anything. Drive, with lower stakes, is where MCP gets tried.
 
 ## Setup
 
@@ -268,8 +277,7 @@ Then Settings → Action Button → Shortcut → "Assistant". The shortcut holds
 ## Open questions
 
 - A name for the assistant.
-- Which Gmail account to use (a personal one is likely simpler than Duke's).
-- The responsible-AI rules for Journal conversations: what it should and shouldn't do (advice, decisions, heavy topics, how honest to be, what it remembers). Decide before building them.
+- The responsible-AI rules for Reflection conversations: what it should and shouldn't do (advice, decisions, heavy topics, how honest to be, what it remembers). Decide before building them.
 
 ## License
 

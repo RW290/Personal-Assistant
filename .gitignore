@@ -22,3 +22,6 @@ venv/
 
 # macOS
 .DS_Store
+
+# Web app: downloaded libraries (the built web/dist is committed)
+web/node_modules/

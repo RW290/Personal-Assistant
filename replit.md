@@ -1,6 +1,6 @@
 # Running on Replit
 
-This is the existing Python 3.12 / FastAPI backend for an iPhone Shortcut, not a browser UI. Keep its structure and stack; see CLAUDE.md for the working spec and trust rules.
+This is the existing Python 3.12 / FastAPI backend for an iPhone Shortcut, plus the small React web app it serves at `/app` (built into `web/dist`, which is committed, so no Node is needed). Keep its structure and stack; see README.md for the plan and trust rules, and CLAUDE.md for how changes are made.
 
 ## Required configuration
 
@@ -20,7 +20,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000
 
 Dependencies are listed in `requirements.txt`. The existing `scripts/post-merge.sh` restores them after task merges.
 
-`GET /` is intentionally public and returns only `{"status":"ok"}` for Replit Autoscale's health check. It does not read data or call tools. All other routes and methods require a valid assistant token and receive HTTP 401 without it; framework documentation routes are disabled. A browser preview is not a functional test of this API.
+`GET /` is intentionally public and returns only `{"status":"ok"}` for Replit Autoscale's health check. It does not read data or call tools. The web app's own files under `/app` and `POST /api/login` are public too and hold no data. All other routes and methods require a valid assistant token or a signed-in web app session and receive HTTP 401 without one; framework documentation routes are disabled. A browser preview is not a functional test of this API.
 
 Send a multipart `POST /voice` with an audio `file`, an optional IANA `timezone` (defaults to `America/New_York`), and the `X-Assistant-Token` header. A successful response contains `transcript` and `task`. End-to-end verification requires working credentials for both external services and an audio sample.
 

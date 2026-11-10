@@ -1,7 +1,7 @@
 """Speech to text with ElevenLabs Scribe."""
-import os
-
 import httpx
+
+from config import ELEVENLABS_API_KEY
 
 SCRIBE_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 SCRIBE_MODEL = "scribe_v2"
@@ -15,7 +15,7 @@ def transcribe(audio: bytes, filename: str) -> str:
     """Send a voice recording to Scribe and return what was said, as plain text."""
     response = httpx.post(
         SCRIBE_URL,
-        headers={"xi-api-key": os.environ["ELEVENLABS_API_KEY"]},
+        headers={"xi-api-key": ELEVENLABS_API_KEY},
         data={
             "model_id": SCRIBE_MODEL,
             "language_code": "en",

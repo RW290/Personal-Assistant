@@ -9,6 +9,7 @@ This file holds only how I want you to work.
 ## How to work with me
 - Explain changes in plain, simple terms. Say what a piece of code does and why, not just what you changed.
 - I write the core agent loop myself (the tool-calling loop, approval queue and action log). For those files, guide me and review my code instead of writing them wholesale, unless I ask you to.
+- I write the agent loop and every tool description myself. When I ask for a review, check my tools against README's "Tool design rules" and point out what's missing or unclear. Don't rewrite my descriptions unless I ask.
 - When I'm debugging, give me a hint first, not the full fix.
 - Python 3. Simplest solution first, with plain lists and dicts. Keep dependencies small. No agent frameworks (LangChain etc.) in my hand-written loop; LangGraph comes in at Milestone 3, for the side-by-side rebuild.
 - Small, working steps. After each milestone, help me write a 4-line write-up: the problem, what I tried, numbers before and after, what's next.

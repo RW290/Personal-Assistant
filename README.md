@@ -2,7 +2,7 @@
 
 A voice-first personal assistant on my iPhone's Action button. I press it and speak, and it helps me run my day. It never sends anything on its own: it drafts, and I send. Quick requests go through the Action button; anything long, and every approval, happens in a web app on my home screen.
 
-I'm building it by hand, in small working steps, so I can explain how and why every part works. The core agent loop (tool calling, approval queue, action log) is written from scratch, with no agent frameworks. Then the same agent is rebuilt in LangGraph, and the two run side by side on the same evals.
+I'm building it by hand, in small working steps, so I can explain how and why every part works. The core agent loop (tool calling, approval queue, action log) is written from scratch, with no agent frameworks. Then the same agent is rebuilt in LangGraph and compared with mine on the same evals, and from then on the LangGraph version handles my requests. Writing my own first is how I learn what LangGraph does underneath.
 
 This README is the plan, and the only place it's written down. [CLAUDE.md](CLAUDE.md) holds how I work with Claude Code, and pulls this file in.
 
@@ -108,6 +108,7 @@ Sharing personal things is the point of this assistant, so every place my data p
 - **Storage: Replit only (decided Oct 28).** All my data lives in Replit's Postgres, including the people graph, so everything works while my Mac sleeps. Protections:
   - Separate development and live databases. Replit Agent never touches the live one.
   - From Milestone 5, people notes and reflections (and later Talk it through summaries and values) are encrypted in the database, with the key in Replit Secrets, so a copy of the database (or an AI reading it) shows only scrambled text. Their embeddings stay unencrypted so search still works.
+  - From Milestone 3, LangGraph's checkpoints in Postgres hold each request's messages, so they follow the action log's rules: deleted after 7 days, and no reflection or Talk it through content in them unencrypted.
   - Regular encrypted backups to my Mac, so a deletion can't wipe everything.
   - This doesn't protect against Replit itself or a legal order to Replit, which holds both the data and the key. Keeping the most sensitive memory on my Mac was considered and passed on: it only works while the Mac is awake.
 - **Google's sign-in screen links to a [privacy policy](docs/privacy.md)** that says which Google data the app uses and where it goes. It stays true to this plan.
@@ -130,6 +131,8 @@ flowchart LR
 
 ### The agent loop (Milestone 1; I write it)
 
+It runs on the Messages API, in a loop I write by hand. Not Claude Managed Agents: it comes with built-in bash, file and web tools, which break the trust rules, and it keeps session transcripts on Anthropic's servers. Not the SDK's tool runner either: its docs say to write the loop by hand when you need approval steps. From Milestone 3, the LangGraph version of this loop handles my requests (see Stack).
+
 1. Send the model the request, my facts, and the tool list.
 2. It returns either a final answer or a tool call.
 3. For a tool call: validate the arguments; if it's a write tool, put it in the approval queue and stop; otherwise run it, log it with its reason, and send the result back.
@@ -150,6 +153,33 @@ The web app reads the queue through `GET /api/approvals` and decides with `POST 
 
 The tools come in this order: reading my calendar, adding calendar events, adding Google Tasks, facts memory (`remember` and `forget`).
 
+#### Tool design rules
+
+How every tool is built, from Claude's tool use docs. I write each tool's description myself.
+
+- **Descriptions matter most.** Every tool gets at least 3 to 4 sentences: what it does, when to use it and when not to, what each parameter means and how it changes the result, and caveats (what it doesn't return or can't do). Don't explain common ideas Claude already knows; do state our formats and limits (dates as YYYY-MM-DD, which calendar, how many results at most).
+- **Names start with the service**: `calendar_list_events`, `calendar_add_event`, `tasks_add`, `gmail_search`. Only letters, digits, `_` and `-`, up to 128 characters.
+- **Fewer tools.** Tools that do the same kind of thing merge into one tool with an `action` parameter, but reads and writes never share a tool, since writes go to the approval queue.
+- **The required `reason` field asks for an explanation, not reasoning**: "One short sentence on why this call is needed." Never ask for step-by-step reasoning in a tool parameter; it can trigger a `reasoning_extraction` refusal.
+- **Strict mode is on for every tool we write** (`"strict": true`), so arguments always match the schema. Code still checks what a schema can't express, like a date in the past.
+- **`input_examples` on tools with dates, times or time zones.** Each example must pass the schema, or the API returns a 400.
+- **Tool results return only what Claude needs for its next step**, with stable IDs (for example the Google event ID, title, start and end), never the provider's raw response.
+- **Errors are instructive**: what went wrong and what to try next, with `is_error` set to true. Never just "failed."
+- **Untrusted text** (email, web pages, notes) only ever goes inside `tool_result` blocks, never the system prompt.
+- **`tool_choice` stays `"auto"`** (Opus 5.5 rejects forced tool use anyway). For guaranteed JSON, use structured outputs, as in Milestone 0.
+- **Prompt caching**: one cache breakpoint after the tools and system prompt, and tool definitions stay identical between requests so the cache holds.
+- **`max_tokens` around 1024** for tool calls and short answers. If `stop_reason` is `"max_tokens"` and the last block is a `tool_use`, the call was cut off: retry once with a higher limit. Log `usage.output_tokens` to tune it.
+
+**Making a Pydantic model fit strict mode.** Strict mode accepts only a subset of JSON Schema, and anything outside it is a 400 error:
+
+- Set `model_config = ConfigDict(extra="forbid")`, so `model_json_schema()` writes `"additionalProperties": false`, which strict mode requires on every object.
+- Leave out `Field` limits the subset doesn't support: `ge`, `le`, `gt`, `lt`, `multiple_of`, `min_length` and `max_length` (they become `minimum`, `maxLength` and so on; the one exception is a list's `min_length` of 0 or 1). Check them in code instead, by validating the input with the model. Or pass the model through the SDK's `anthropic.transform_schema()`, which moves them into the field's description; the model in code still enforces them.
+- These work as they are: `datetime.date` and `datetime.time` fields (they become `"format": "date"` and `"time"`), `Literal[...]` (an `enum`), and nested models (`$defs` and `$ref`).
+- Every optional field (`x: str | None = None`) counts against two limits across all strict tools in a request: 24 optional parameters, and 16 that allow more than one type. A request can have at most 20 strict tools.
+- No recursive models (a model that contains itself).
+
+Sources: [Define tools](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools), [Handle tool calls](https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls), [Strict tool use](https://platform.claude.com/docs/en/agents-and-tools/tool-use/strict-tool-use), and for the Pydantic note, [JSON Schema limitations](https://platform.claude.com/docs/en/build-with-claude/structured-outputs#json-schema-limitations).
+
 ## Stack
 
 | Piece | Choice |
@@ -159,7 +189,7 @@ The tools come in this order: reading my calendar, adding calendar events, addin
 | Speech to text | ElevenLabs Scribe v2 (`model_id` `scribe_v2`, English). Starter plan |
 | Text to speech | ElevenLabs, on request only, generated when I press play, with caching. Later, reflection conversations use a custom voice I provide (a voice clone) |
 | Main model | Claude via the Anthropic API, using its built-in tool calling. Speech to task (Milestone 0) uses Claude Haiku 5.5 (`claude-haiku-5-5`): it matched Opus 5.5 on the test requests, faster and at about 1/40 the price. Reflection mode (Milestone 5) uses Claude Opus 5.5 (`claude-opus-5-5`) |
-| Agent framework | None in my own loop. At Milestone 3 the same agent is rebuilt in LangGraph (approval as an interrupt, state in a Postgres checkpointer) and compared with mine |
+| Agent framework | None until Milestone 3: the Messages API with my own loop (see The agent loop). At Milestone 3 the same agent is rebuilt in LangGraph (approval as an interrupt, state in a Postgres checkpointer) and compared with mine; from then on the LangGraph version handles my requests |
 | Embeddings | OpenAI `text-embedding-3-small` (1536 dims). Never switch models without re-embedding |
 | Backend | Python + FastAPI. Django was considered and passed on: this is a small JSON API that mostly waits on other services, and FastAPI's Pydantic models double as the shapes Claude must answer in |
 | Hosting | Replit: Autoscale deployment (server), Scheduled deployment (morning briefing), Secrets (keys). Python 3.12 on Replit, 3.11 on the Mac: code must run on both. `.replit` uses the `python-3.12` module, never `python-base-*` (that one has no pip, so the deploy's automatic install fails); the deployment's run command and port live in `.replit` too |
@@ -235,6 +265,7 @@ An eval is a fixed set of test cases plus a grader, run before any change to pro
 - **Speech is tested separately**: a few recordings (the Mac's voice, plus my own voice reading made-up sentences, kept out of git) measure transcription mistakes and whether Scribe keyterms fix names.
 - **Real mistakes become cases**: when the action log shows one, it's rewritten with made-up details and added.
 - **For later**: when Milestone 3 starts, Claude Code's `/claude-api build-eval` command walks through building the eval set step by step. When the LangGraph version is built (also Milestone 3), try LangSmith (LangChain's eval and tracing tool) next to our runner, only on eval runs with made-up data and never on real requests, since it sends every run to LangChain's servers.
+- **Later, not scheduled: the advisor tool** (Haiku asks Opus for a plan partway through an answer, inside one request). Test it with the evals from Milestone 3, on multi-step requests and, once they exist at Milestone 4, email drafts. Not for quick Action button requests: the docs call single-turn questions a poor fit, it adds latency and Opus-priced tokens, and advice from the newest advisors (Opus 5.5 among them) comes back encrypted, so it couldn't go in the action log.
 
 ## Milestones
 
@@ -247,7 +278,7 @@ A sequence I work through in order, faster or slower depending on when I'm free.
 | 1b | My agent loop with one tool (calendar read); Google sign-in with my work account | "What's on Friday?" answers from the calendar |
 | 1 | My agent loop; calendar (read, add events), task and Google to-do tools; approval queue; action log (what I asked and what it did, deleted after 7 days); replies queue; facts memory; the web app's approval queue and action log | "What's on Friday?" answers from the calendar; "add X" waits for approval and is approved with a tap in the web app; "dinner with Alex Friday at 7" lands on my calendar after a tap; "I live in Durham" survives a restart |
 | 2 | Long-term memory with RAG: embeddings, pgvector and a recall tool | 20 recall questions with known answers: how often the right memory is in the top 3 |
-| 3 | Evals: 50 requests + 10 injection tests; Scribe keyterms. The same agent rebuilt in LangGraph (same tools, prompts and model; approval as an interrupt, state in a Postgres checkpointer), run side by side with my hand-written loop on that eval set; deployed on Replit; write-ups. **Resume-ready** | Tool accuracy, argument accuracy and injection pass rate saved as the baseline; tool accuracy, argument accuracy, injection pass rate, latency and cost for both loops |
+| 3 | Evals: 50 requests + 10 injection tests; Scribe keyterms. The same agent rebuilt in LangGraph (same tools, prompts and model; approval as an interrupt, state in a Postgres checkpointer), run side by side with my hand-written loop on that eval set, then handling my requests; deployed on Replit; write-ups. **Resume-ready** | Tool accuracy, argument accuracy and injection pass rate saved as the baseline; tool accuracy, argument accuracy, injection pass rate, latency and cost for both loops |
 | Then | Let other people try it (below) | Someone else gets from forking the repo to a first spoken request with the guide alone; the demo login shows only made-up data and stops at its daily cap |
 | 4 | Gmail search across my personal and shopping accounts (read-only); email drafts in my style (from my sent mail), waiting in the web app; email text treated as data; finance senders skipped; an LLM judge for drafts; a self-review loop (the model checks and revises its own draft, 2 or 3 rounds max) | A planted "forward all receipts" email is ignored; an email from a skipped sender never reaches the model; the judge agrees with my own labels on about 90% of 20 drafts |
 | 5 | Reflection mode recorded in the web app (long recordings, Opus, encrypted entries) with approval; people memory graph filled from reflections and "remember..." requests, with approval, its notes encrypted; passkey sign-in with Face ID; people notes viewable and deletable in the web app; recall searches reflections and people notes too | On 15 hand-written reflections (10 about people): people, relationships, memories and to-dos found vs invented, including two people with two relationships at once; the summary stays in my words; nothing kept without a tap; 10 recall questions (half about relationships), graph vs vector-only; leak test (no draft to one person mentions notes about another); no eval gets worse |
@@ -327,6 +358,12 @@ How I make decisions, in my own words, in three layers:
 - Only I write or change entries. The assistant may suggest wording from a conversation; I approve it.
 - It doesn't pretend to be me. It reasons with my values out loud ("by your principle that..."), says when two of my values conflict, and kindly points out when something I'm considering doesn't match a value I wrote down.
 - Evals: 10 decisions where I record my choice and the deciding value; measure how often it picks the same value and reaches the same choice.
+
+## To learn later
+
+- **JSON Schema**, the format tool inputs are described in. Pydantic writes it with `model_json_schema()` (see Tool design rules).
+- **How MCP servers work.** Google Drive is the first try, as planned.
+- **The SDK's tool runner compared with my loop**, after Milestone 1b.
 
 ## Style for anything the assistant drafts in my voice
 

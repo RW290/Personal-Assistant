@@ -138,6 +138,8 @@ It runs on the Messages API, in a loop I write by hand. Not Claude Managed Agent
 3. For a tool call: validate the arguments; if it's a write tool, put it in the approval queue and stop; otherwise run it, log it with its reason, and send the result back.
 4. Repeat until a final answer, with a cap of about 5 rounds. Handle tool errors and bad arguments by telling the model, not crashing.
 
+When a request is ambiguous (two people with the same name, a missing date), it asks one short question instead of guessing, and the question comes back in the notification. Whether a second Action button press continues the same conversation is an open question (see Open questions).
+
 Each approval queue item has these fields, which the web app shows:
 
 - `id`
@@ -421,6 +423,7 @@ Then Settings → Action Button → Shortcut → "Assistant". The shortcut holds
 ## Open questions
 
 - A name for the assistant.
+- When the agent asks a short question back, whether my next Action button press continues the same conversation (so I can just answer) or starts a new one.
 - The responsible-AI rules for Reflection conversations: what it should and shouldn't do (advice, decisions, heavy topics, how honest to be, what it remembers). Decide before building them.
 
 ## License

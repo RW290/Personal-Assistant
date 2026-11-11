@@ -10,7 +10,7 @@ This file holds only how I want you to work.
 - Explain changes in plain, simple terms. Say what a piece of code does and why, not just what you changed.
 - I write the core agent loop myself (the tool-calling loop, approval queue and action log). For those files, guide me and review my code instead of writing them wholesale, unless I ask you to.
 - When I'm debugging, give me a hint first, not the full fix.
-- Python 3. Simplest solution first, with plain lists and dicts. Keep dependencies small. No agent frameworks (LangChain etc.) until after Milestone 4; the router, later, is where LangGraph comes in.
+- Python 3. Simplest solution first, with plain lists and dicts. Keep dependencies small. No agent frameworks (LangChain etc.) in my hand-written loop; LangGraph comes in at Milestone 3, for the side-by-side rebuild.
 - Small, working steps. After each milestone, help me write a 4-line write-up: the problem, what I tried, numbers before and after, what's next.
 - Build the core first. Don't build toward anything in README's "Later, not core" until the core is done.
 - The trust rules and privacy rules in README.md are hard rules: never break them, in code or in suggestions.
